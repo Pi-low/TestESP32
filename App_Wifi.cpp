@@ -12,6 +12,7 @@
 eApp_RetVal eAppWifi_init(uint32_t u32Timeout) {
     eApp_RetVal eRet = eRet_Ok;
     uint32_t u32ExitTimeout = millis() + u32Timeout;
+    WiFi.setHostname(MY_DEVICENAME);
     if (WiFi.begin(MY_SSID, MY_PWD) != WL_CONNECTED) {
         while ((u32ExitTimeout > millis()) && (WiFi.status() != WL_CONNECTED)) {
             delay(500);

@@ -10,8 +10,11 @@
 
 #if defined(APP_FASTLED) && APP_FASTLED
 
+#include "SubStrip.h"
+
 static CRGB ledStrip[LED_NB];
 static TsAppLED_BlinkAnim tsAppLED_Blink;
+static SubStrip subStrip1(20); // Example sub-strip with 20 LEDs
 
 /**
  * @brief Initialize ledstrip
