@@ -51,21 +51,11 @@ void SubStrip::ManageAnimation(void) {
     }
 }
 
-void SubStrip::SetGlitter(CRGB* ColorPalette, uint8_t u8FadeRate) {
+void SubStrip::SetAnimation(TeAnimation eAnim, CRGB* ColorPalette, uint16_t *pu16Param) {
     _ColorPalette = ColorPalette;
-    _eCurrentAnimation = ANIMATION_GLITTER;
-    // Additional setup for glitter animation
+    _eCurrentAnimation = eAnim;
 }
 
-void SubStrip::SetRaindrops(CRGB SeedColor, uint8_t u8Speed) {
-    _eCurrentAnimation = ANIMATION_RAINDROPS;
-    // Additional setup for raindrops animation
-}
-
-void SubStrip::SetFire(void) {
-    _eCurrentAnimation = ANIMATION_FIRE;
-    // Additional setup for fire animation
-}
 
 void SubStrip::AnimateGlitter(void) {
     // Placeholder for glitter animation
