@@ -10,37 +10,42 @@
 
 #include <FastLED.h>
 
-typedef enum {
-    SubStrip_NONE,
-    SubStrip_GLITTER,
-    SubStrip_RAINDROPS,
-    SubStrip_FIRE
-} TeAnimation;
-
 class SubStrip {
 public:
+    typedef enum {
+        NONE,
+        GLITTER,
+        RAINDROPS,
+        FIRE,
+        NB_ANIMS
+    } TeAnimation;
+
     SubStrip(uint8_t u8NbLeds);
-    void GetSubStrip(CRGB *leds, uint8_t u8NbLeds);
-    void ManageAnimation(void); // to be called into loop()
-    void SetAnimation(TeAnimation eAnim, CRGB* ColorPalette, uint16_t *pu16Param);
-    void Blackout(void);
-    void fillColor(CRGB color);
     ~SubStrip();
+    void vGetSubStrip(CRGB *leds, uint8_t u8NbLeds);
+    void vManageAnimation(uint32_t u32CurrentTick); // to be called into loop()
+    void vSetAnimation(TeAnimation eAnim);
+    void vSetSpeed(uint16_t u16Speed);
+    void vSetPeriod(uint32_t u32Period);
+    void vClear(void);
+    void vFillColor(CRGB color);
+    bool bIsBlack(void);
 
 private:
     CRGB *_SubLeds;  // Pointer to the LED array
     CRGB *_ColorPalette; // Pointer to the color palette
     uint8_t _u8NbLeds; // Number of LEDs in the sub-strip
-    TeAnimation _eCurrentAnimation = SubStrip_NONE;
-    void clear(void);
-    void fadeToBlack(uint8_t u8FadeValue);
-    void shiftFwd(CRGB *Color);
-    void insertFwd(CRGB ColorFeed);
-    void shiftBwd(CRGB *Color);
-    void insertBwd(CRGB ColorFeed);;
-    void AnimateGlitter(void);
-    void AnimateRaindrops(void);
-    void AnimateFire(void);
+    uint16_t _u16Speed; // Animation speed
+    uint32_t _u32Period; // Animation period
+    uint32_t _u32CurrentTick;
+    TeAnimation _eCurrentAnimation = NONE;
+    void vShiftFwd(CRGB *Color);
+    void vInsertFwd(CRGB ColorFeed);
+    void vShiftBwd(CRGB *Color);
+    void vInsertBwd(CRGB ColorFeed);
+    void vAnimateGlitter(void);
+    void vAnimateRaindrops(void);
+    void vAnimateFire(void);
 };
 
 #endif // _SUBSTRIP_H

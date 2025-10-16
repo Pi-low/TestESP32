@@ -43,7 +43,7 @@ void eAppWifi_Tasking(void) {
     static uint32_t u32Timeout = 0;
     if (u32Timeout < millis()) {
         u32Timeout = WIFI_TASKING + millis();
-        eAppWifi_RssiGauge();
+        // eAppWifi_RssiGauge();
     }
 }
 

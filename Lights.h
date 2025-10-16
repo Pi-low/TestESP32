@@ -15,12 +15,12 @@
 
 #include <FastLED.h>
 
-#define LED_NB			20
+#define LED_NB			100
 #define LED_DATA_PIN	4
 #define LED_CHIPSET		WS2812
 #define LED_PIXEL_ORDER	GRB
-#define LED_BRIGHTNESS	64
-#define LED_REFRESH		100 //ms
+#define LED_BRIGHTNESS	128
+#define LED_REFRESH		33 //ms
 
 void AppLED_init(void);
 void AppLED_fillGauge(int CurrentVal, int MinVal, int MaxVal);

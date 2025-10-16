@@ -14,8 +14,10 @@
 
 static CRGB ledStrip[LED_NB];
 static TsAppLED_BlinkAnim tsAppLED_Blink;
-static SubStrip subStrip1(20); // Example sub-strip with 20 LEDs
-
+static SubStrip subStrip1(20);
+static SubStrip subStrip2(20);
+static SubStrip subStrip3(20);
+static SubStrip subStrip4(20);
 /**
  * @brief Initialize ledstrip
  * 
@@ -27,6 +29,16 @@ void AppLED_init(void) {
     tsAppLED_Blink = (TsAppLED_BlinkAnim) {CRGB::Red, 0, 0, 200};
     FastLED.clear();
     FastLED.show();
+
+    subStrip1.vSetAnimation(SubStrip::RAINDROPS);
+    subStrip2.vSetAnimation(SubStrip::RAINDROPS);
+    subStrip3.vSetAnimation(SubStrip::RAINDROPS);
+    subStrip4.vSetAnimation(SubStrip::RAINDROPS);
+
+    subStrip1.vSetPeriod(2000);
+    subStrip2.vSetPeriod(1800);
+    subStrip3.vSetPeriod(1600);
+    subStrip4.vSetPeriod(1400);
 }
 
 /**
@@ -72,16 +84,27 @@ void AppLED_blink(uint8_t u8Enable) {
  */
 void AppLED_showLoop(void) {
     static uint32_t u32Timeout = 0;
-    static uint32_t u32BlinkTmout = 0;
-    static uint8_t u8Toggle = 0;
-    if ((tsAppLED_Blink.u8State) && (u32BlinkTmout < millis())) {
-        u32BlinkTmout =  millis() + tsAppLED_Blink.u16Period;
-        u8Toggle ^= 1;
-        FastLED.clear();
-        ledStrip[tsAppLED_Blink.u8Pos] = u8Toggle ? tsAppLED_Blink.Color : CRGB::Black;
-    }
-    if (u32Timeout < millis()) {
-        u32Timeout = millis() + LED_REFRESH;
+    uint32_t u32RightNow = millis();
+    // static uint32_t u32BlinkTmout = 0;
+    // static uint8_t u8Toggle = 0;
+    subStrip1.vManageAnimation(u32RightNow);
+    subStrip2.vManageAnimation(u32RightNow);
+    subStrip3.vManageAnimation(u32RightNow);
+    subStrip4.vManageAnimation(u32RightNow);
+
+    subStrip1.vGetSubStrip(ledStrip, 20);
+    subStrip2.vGetSubStrip(ledStrip + 20, 20);
+    subStrip3.vGetSubStrip(ledStrip + 40, 20);
+    subStrip4.vGetSubStrip(ledStrip + 60, 20);
+
+    // if ((tsAppLED_Blink.u8State) && (u32BlinkTmout < millis())) {
+    //     u32BlinkTmout =  millis() + tsAppLED_Blink.u16Period;
+    //     u8Toggle ^= 1;
+    //     FastLED.clear();
+    //     ledStrip[tsAppLED_Blink.u8Pos] = u8Toggle ? tsAppLED_Blink.Color : CRGB::Black;
+    // }
+    if (u32Timeout < u32RightNow) {
+        u32Timeout = u32RightNow + LED_REFRESH;
         FastLED.show();
     }
 }
