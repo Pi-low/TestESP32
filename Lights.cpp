@@ -37,7 +37,7 @@ void AppLED_init(void) {
     subStrip2.vSetAnimation(SubStrip::CHECKERED, 1000, 6, pMyColorPalette1);
     subStrip3.vSetAnimation(SubStrip::RAINDROPS, 1500, 2);
     subStrip4.vSetAnimation(SubStrip::CHECKERED, 1000, 2, pMyColorPalette2);
-    subStrip5.vSetAnimation(SubStrip::RAINDROPS, 2500, 3);
+    subStrip5.vSetAnimation(SubStrip::RAINDROPS, 2500, 2);
 }
 
 /**
