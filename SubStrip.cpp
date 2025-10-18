@@ -295,7 +295,7 @@ void SubStrip::vAnimateCheckered() {
 void SubStrip::initCheckered() {
     if (!_u8ColorNb)
     { return; }
-    else if (_ColorPalette)
+    else if (_ColorPalette == NULL)
     { return; }
 
     uint8_t u8Repeat = _u8NbLeds / _u8ColorNb;
