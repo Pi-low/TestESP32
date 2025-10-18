@@ -91,9 +91,9 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
  * @brief Set animation
  ******************************************************************************/
 void SubStrip::vSetAnimation(TeAnimation eAnim) {
-    if (eAnim >= SubStrip::NB_ANIMS) {
-        return; // Invalid animation type
-    }
+    if (eAnim >= SubStrip::NB_ANIMS)
+    { return; } // Invalid animation type
+    
     switch(eAnim) {
         case SubStrip::CHECKERED:
             initCheckered();
@@ -111,8 +111,8 @@ void SubStrip::vSetAnimation(TeAnimation eAnim, uint32_t u32Period, uint8_t u8Sp
 }
 
 void SubStrip::vSetAnimation(TeAnimation eAnim, uint32_t u32Period, uint8_t u8Speed, CRGB *pPalette) {
-    vSetAnimation(eAnim, u32Period, u8Speed);
     vSetColorPalette(pPalette);
+    vSetAnimation(eAnim, u32Period, u8Speed);
 }
 
 /*******************************************************************************
@@ -293,6 +293,11 @@ void SubStrip::vAnimateCheckered() {
  * @brief Initialize checkered animation
  ******************************************************************************/
 void SubStrip::initCheckered() {
+    if (!_u8ColorNb)
+    { return; }
+    else if (_ColorPalette)
+    { return; }
+
     uint8_t u8Repeat = _u8NbLeds / _u8ColorNb;
     CRGB* pLed = _SubLeds;
     CRGB* pColor = _ColorPalette;
