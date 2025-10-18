@@ -13,7 +13,6 @@
 #include "SubStrip.h"
 
 static CRGB ledStrip[LED_NB];
-static TsAppLED_BlinkAnim tsAppLED_Blink;
 
 SubStrip subStrip1(20);
 SubStrip subStrip2(20);
@@ -31,12 +30,8 @@ void AppLED_init(void) {
     FastLED.addLeds<LED_CHIPSET, LED_DATA_PIN, LED_PIXEL_ORDER>(ledStrip, LED_NB);
 	FastLED.setBrightness(LED_BRIGHTNESS);
     FastLED.setCorrection(TypicalLEDStrip);
-    tsAppLED_Blink = (TsAppLED_BlinkAnim) {CRGB::Red, 0, 0, 200};
     FastLED.clear();
     FastLED.show();
-
-    subStrip2.vSetColorPalette(pMyColorPalette1);
-    subStrip4.vSetColorPalette(pMyColorPalette2);
 
     subStrip1.vSetAnimation(SubStrip::RAINDROPS, 2000, 1);;
     subStrip2.vSetAnimation(SubStrip::CHECKERED, 1000, 6, pMyColorPalette1);
@@ -55,31 +50,8 @@ void AppLED_init(void) {
 void AppLED_fillGauge(int CurrentVal, int MinVal, int MaxVal) {
     uint8_t u8MappedOut = map(CurrentVal, MinVal, MaxVal, 0, LED_NB);
     FastLED.clear();
-    // fill_solid(ledStrip, u8MappedOut, Color);
     fill_gradient_RGB(ledStrip, LED_NB, CRGB::Red, CRGB::Blue);
     fill_solid(ledStrip + (LED_NB - u8MappedOut), u8MappedOut, CRGB::Black);
-}
-
-/**
- * @brief Toggle one led every call
- * 
- * @param u8Pos 
- * @param Color 
- * @param u16Period periodicity, (uint16_t)(-1) = disable
- */
-void AppLED_setupBlink(uint8_t u8Pos, CRGB Color, uint16_t u16Period) {
-        tsAppLED_Blink.u16Period = u16Period;
-        tsAppLED_Blink.Color = Color;
-        tsAppLED_Blink.u8Pos = u8Pos;
-}
-
-/**
- * @brief Enable/disable led blink anim
- * 
- * @param u8Enable
- */
-void AppLED_blink(uint8_t u8Enable) {
-    tsAppLED_Blink.u8State = u8Enable;
 }
 
 /**
@@ -90,16 +62,6 @@ void AppLED_showLoop(void) {
     static uint32_t u32Timeout = 0;
     static uint32_t u32ShiftedTimeout = 0;
     uint32_t u32RightNow = millis();
-    uint32_t u32NowShifted = u32RightNow + LED_REFRESH;
-
-    // static uint32_t u32BlinkTmout = 0;
-    // static uint8_t u8Toggle = 0;
-    // if ((tsAppLED_Blink.u8State) && (u32BlinkTmout < millis())) {
-    //     u32BlinkTmout =  millis() + tsAppLED_Blink.u16Period;
-    //     u8Toggle ^= 1;
-    //     FastLED.clear();
-    //     ledStrip[tsAppLED_Blink.u8Pos] = u8Toggle ? tsAppLED_Blink.Color : CRGB::Black;
-    // }
 
     if (u32Timeout < u32RightNow) {
         u32Timeout = u32RightNow + LED_REFRESH;
@@ -116,10 +78,6 @@ void AppLED_showLoop(void) {
         subStrip3.vGetSubStrip(ledStrip + 40, 20);
         subStrip4.vGetSubStrip(ledStrip + 60, 20);
         subStrip5.vGetSubStrip(ledStrip + 80, 20);
-    }
-
-    if (u32ShiftedTimeout < u32NowShifted) {
-        u32ShiftedTimeout = u32NowShifted + LED_REFRESH;
         FastLED.show();
     }
 }

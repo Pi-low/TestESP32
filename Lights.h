@@ -24,19 +24,7 @@
 
 void AppLED_init(void);
 void AppLED_fillGauge(int CurrentVal, int MinVal, int MaxVal);
-void AppLED_setupBlink(uint8_t u8Pos, CRGB Color, uint16_t u16Period);
-void AppLED_blink(uint8_t u8Enable);
 void AppLED_showLoop(void);
-
-/* Pirvate types, enum, definitions */
-#ifdef _LIGHTS_C
-typedef struct {
-    CRGB Color;
-    uint8_t u8State;
-    uint8_t u8Pos;
-    uint16_t u16Period;
-} TsAppLED_BlinkAnim;
-#endif
 
 #endif // APP_FASTLED
 
