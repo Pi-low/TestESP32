@@ -12,32 +12,33 @@
 
 #include "SubStrip.h"
 
-static CRGB ledStrip[LED_NB];
+static CRGB ledStrip[_LED_NB];
+static SubStrip[LED_SUBSTRIP_NB];
 
-SubStrip subStrip1(20);
-SubStrip subStrip2(20);
-SubStrip subStrip3(20);
-SubStrip subStrip4(20);
-SubStrip subStrip5(20);
+SubStrip subStrip1(20, NULL);
+SubStrip subStrip2(20, NULL);
+SubStrip subStrip3(20, NULL);
+SubStrip subStrip4(20, NULL);
+SubStrip subStrip5(20, NULL);
+
+CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
+CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
 /**
  * @brief Initialize ledstrip
  * 
  */
 void AppLED_init(void) {
-    CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
-    CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
-
     FastLED.addLeds<LED_CHIPSET, LED_DATA_PIN, LED_PIXEL_ORDER>(ledStrip, LED_NB);
 	FastLED.setBrightness(LED_BRIGHTNESS);
     FastLED.setCorrection(TypicalLEDStrip);
     FastLED.clear();
     FastLED.show();
 
-    subStrip1.vSetAnimation(SubStrip::RAINDROPS, 2000, 1);;
-    subStrip2.vSetAnimation(SubStrip::CHECKERED, 1000, 6, pMyColorPalette1);
-    subStrip3.vSetAnimation(SubStrip::RAINDROPS, 1500, 2);
-    subStrip4.vSetAnimation(SubStrip::CHECKERED, 1000, 2, pMyColorPalette2);
-    subStrip5.vSetAnimation(SubStrip::RAINDROPS, 2500, 2);
+    subStrip1.vSetAnimation(SubStrip::RAINDROPS, pMyColorPalette1, 2000, 1);
+    subStrip2.vSetAnimation(SubStrip::CHECKERED, pMyColorPalette1, 1000, 6);
+    subStrip3.vSetAnimation(SubStrip::RAINDROPS, pMyColorPalette1, 1500, 2);
+    subStrip4.vSetAnimation(SubStrip::CHECKERED, pMyColorPalette2, 1000, 2);
+    subStrip5.vSetAnimation(SubStrip::RAINDROPS, pMyColorPalette1, 2500, 2);
 }
 
 /**
@@ -64,7 +65,7 @@ void AppLED_showLoop(void) {
     uint32_t u32RightNow = millis();
 
     if (u32Timeout < u32RightNow) {
-        u32Timeout = u32RightNow + LED_REFRESH;
+        u32Timeout = u32RightNow + _LED_TIMEOUT;
 
         subStrip1.vManageAnimation(u32RightNow);
         subStrip2.vManageAnimation(u32RightNow);

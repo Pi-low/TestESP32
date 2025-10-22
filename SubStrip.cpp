@@ -15,12 +15,20 @@
  * @brief Constructor for the SubStrip class.
  * @param u8NbLeds Number of LEDs in the sub-strip.
  ******************************************************************************/
-SubStrip::SubStrip(uint8_t u8NbLeds) {
+SubStrip::SubStrip(uint8_t u8NbLeds, CRGB *pLeds) {
     u8NbLeds = (u8NbLeds < 1) ? 1 : u8NbLeds; // Ensure at least one LED
     u8NbLeds = (u8NbLeds > 200) ? 200 : u8NbLeds; // Ensure at most 200 LEDs
     _u8NbLeds = u8NbLeds;
     _ColorPalette = NULL;
-    _SubLeds = new CRGB[_u8NbLeds];
+    if (pLeds == NULL) { // dynamic allocation
+        _SubLeds = new CRGB[_u8NbLeds];
+        _bDynamic = true;
+    }
+    else {
+        _SubLeds = pLeds; // use given pointer as strip reference
+        _bDynamic = false;
+    }
+    
     _u32Period = 2000;
     _u32Timeout = 0;
     _bTrigger = false;
@@ -37,7 +45,10 @@ SubStrip::SubStrip(uint8_t u8NbLeds) {
  * @brief Clears the LED array by setting all LEDs to black.
  ******************************************************************************/
 SubStrip::~SubStrip() {
-    delete[] _SubLeds;
+    if (_bDynamic) {
+        delete[] _SubLeds;
+        _bDynamic = false;
+    }
 }
 
 /*******************************************************************************
@@ -46,7 +57,7 @@ SubStrip::~SubStrip() {
  * @param u8NbLeds Number of LEDs to copy.
  ******************************************************************************/
 void SubStrip::vGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
-    if ((u8NbLeds > _u8NbLeds) || (leds == NULL)) {
+    if ((u8NbLeds > _u8NbLeds) || (leds == NULL) || !_bDynamic) {
         // Handle error: number of LEDs does not match
         return;
     }
@@ -104,57 +115,59 @@ void SubStrip::vSetAnimation(TeAnimation eAnim) {
     _eCurrentAnimation = eAnim;
 }
 
-void SubStrip::vSetAnimation(TeAnimation eAnim, uint32_t u32Period, uint8_t u8Speed) {
+void SubStrip::vSetAnimation(TeAnimation eAnim, CRGB *pPalette) {
+    vSetColorPalette(pPalette);
+    vSetAnimation(eAnim);
+}
+
+void SubStrip::vSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period) {
+    vSetColorPalette(pPalette);
+    vSetAnimation(eAnim);
+    vSetPeriod(u32Period);
+}
+void SubStrip::vSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period, uint8_t u8Speed) {
+    vSetColorPalette(pPalette);
     vSetAnimation(eAnim);
     vSetPeriod(u32Period);
     vSetSpeed(u8Speed);
-}
-
-void SubStrip::vSetAnimation(TeAnimation eAnim, uint32_t u32Period, uint8_t u8Speed, CRGB *pPalette) {
-    vSetColorPalette(pPalette);
-    vSetAnimation(eAnim, u32Period, u8Speed);
 }
 
 /*******************************************************************************
  * @brief Set color palette
  ******************************************************************************/
 void SubStrip::vSetColorPalette(CRGB *ColorPalette) {
-    CRGB *pColor = ColorPalette;
 
     /* Protect from bad parameters */
     if (ColorPalette == NULL)
     { return; }
     else if (*ColorPalette == CRGB::Black)
-    {  return; }
+    { return; }
 
-    /* Delete previous color palette */
-    if (_ColorPalette) {
-        delete[] _ColorPalette;
-    }
+    CRGB *pColor = ColorPalette;
 
     /* auto-detect nomber of colors */
     _u8ColorNb = 0;
-    while (*pColor && (*pColor != CRGB::Black)) {
+    uint8_t u8SecureLoop = 0;
+    while (*pColor && (*pColor != CRGB::Black) && (u8SecureLoop < SUBSTRIP_SECURE_LOOOP)) {
         _u8ColorNb++;
         pColor++;
+        u8SecureLoop++;
     }
 
-    /* Copy colors inside object */
-    _ColorPalette = new CRGB[_u8ColorNb];
-    memcpy(_ColorPalette, ColorPalette, _u8ColorNb * sizeof(CRGB));
+    _ColorPalette = ColorPalette;
 }
 
 /*******************************************************************************
  * @brief Trigger animation
  ******************************************************************************/
-void SubStrip::vTriggerAnim(void)
-{
+void SubStrip::vTriggerAnim(void) {
     _bTrigger = true;
 }
 
 /*******************************************************************************
  * @brief Set animation speed, 1: fast, 255: slow
  * @details speed is expressed a multiple of animation callrate
+ * @param u8Speed [1-255] fast -> slow
  ******************************************************************************/
 void SubStrip::vSetSpeed(uint8_t u8Speed) {
     _u8Speed = u8Speed ? u8Speed : 1;
@@ -162,9 +175,20 @@ void SubStrip::vSetSpeed(uint8_t u8Speed) {
 
 /*******************************************************************************
  * @brief Set animation period
+ * @param u32Period SUBSTRIP_STOP_PERIODIC will stop periodic triggering
  ******************************************************************************/
 void SubStrip::vSetPeriod(uint32_t u32Period) {
     _u32Period = u32Period ? u32Period : 100;
+}
+
+/*******************************************************************************
+ * @brief Set animation period
+ * @param eDirection
+ ******************************************************************************/
+void SubStrip::vSetDirection(TeDirection eDirection) {
+    if (eDirection > REVERSE_OUTIN)
+    { return; }
+    _eDirection = eDirection;
 }
 
 /*******************************************************************************
@@ -254,8 +278,9 @@ void SubStrip::vAnimateGlitter() {
  * @brief Manage raindrop animation
  ******************************************************************************/
 void SubStrip::vAnimateRaindrops() {
+    if (_ColorPalette == NULL)
+    { return; }
     fadeToBlackBy(_SubLeds, _u8NbLeds, 90);
-
     if (_bTrigger && bIsBlack() && ((_u8Index >= _u8NbLeds) || !_u8Index)) {
         _bTrigger = false;
         _u8Index = 0;
@@ -265,7 +290,7 @@ void SubStrip::vAnimateRaindrops() {
     if ((_u8DelayRate % _u8Speed) == 0) {
         _u8DelayRate = 0;
         if ((_pPixel != NULL) && (_u8Index < _u8NbLeds)) {
-            *_pPixel = CRGB::White;
+            *_pPixel = *_ColorPalette;
             _u8Index++;
             _pPixel++;
         }
@@ -284,7 +309,10 @@ void SubStrip::vAnimateCheckered() {
     // Placeholder for checkered animation
     if ((_u8DelayRate % _u8Speed) == 0) {
         _u8DelayRate = 0;
-        vShiftBwd(NULL);
+        if (_eDirection == FORWARD_INOUT)
+        { vShiftFwd(NULL); }
+        else
+        { vShiftBwd(NULL); }
     }
     _u8DelayRate++;
 }
