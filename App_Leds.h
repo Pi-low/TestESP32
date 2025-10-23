@@ -6,8 +6,8 @@
  * @author Nello
  */
 
-#ifndef _LIGHTS_H
-#define _LIGHTS_H
+#ifndef _APP_LEDS_H
+#define _APP_LEDS_H
 
 #include "Config.h"
 
@@ -24,7 +24,8 @@
 #define LED_REFRESH         50 //fps
 
 #define _LED_TIMEOUT		(1000/LED_REFRESH) //ms
-#define _LED_NB			(LED_SUB_LEN*LED_SUB_NB)
+#define _LED_NB			    (LED_SUBSTRIP_LEN * LED_SUBSTRIP_NB)
+#define _SUB_OFFSET(x)      (x * LED_SUBSTRIP_LEN)
 
 void AppLED_init(void);
 void AppLED_fillGauge(int CurrentVal, int MinVal, int MaxVal);
@@ -32,4 +33,4 @@ void AppLED_showLoop(void);
 
 #endif // APP_FASTLED
 
-#endif //_LIGHTS_H
+#endif //_APP_LEDS_H

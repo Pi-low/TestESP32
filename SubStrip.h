@@ -33,7 +33,7 @@ public:
         TeAnimation eAnimation;
         uint32_t u32Period;
         uint32_t u32TimOffset; //aka phase shift
-        uint8_t u8Speed,
+        uint8_t u8Speed;
         TeDirection eDirection;
         CRGB* pColors;
     } TstConfig;
