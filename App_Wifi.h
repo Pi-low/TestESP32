@@ -11,13 +11,12 @@
 
 #include "Config.h"
 
-#if defined(MY_SSID) && defined (MY_PWD)
-#define APP_WIFI
-#endif
-
-#ifdef APP_WIFI
+#if defined(APP_WIFI) && APP_WIFI
 
 #define WIFI_TASKING 500
+#define MY_DEVICENAME   "Proto01"
+// #define MY_SSID         ""
+// #define MY_PWD          ""
 
 #include <WiFi.h>
 

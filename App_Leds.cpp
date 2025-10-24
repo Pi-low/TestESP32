@@ -5,58 +5,69 @@
  * @date 2025-10-13
  * @author Nello
  */
-#define _LIGHTS_C
+
 #include "App_Leds.h"
 
 #if defined(APP_FASTLED) && APP_FASTLED
 
 #include "SubStrip.h"
 
+void vAppLedsTask(void *pvParam);
+
 static CRGB ledStrip[_LED_NB];
 static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
-    SubStrip(20, ledStrip + _SUB_OFFSET(0)),
-    SubStrip(20, ledStrip + _SUB_OFFSET(1)),
-    SubStrip(20, ledStrip + _SUB_OFFSET(2)),
-    SubStrip(20, ledStrip + _SUB_OFFSET(3)),
-    SubStrip(20, ledStrip + _SUB_OFFSET(4)),
+    SubStrip(20, ledStrip + _LED_SUB_OFFSET(0)),
+    SubStrip(20, ledStrip + _LED_SUB_OFFSET(1)),
+    SubStrip(20, ledStrip + _LED_SUB_OFFSET(2)),
+    SubStrip(20, ledStrip + _LED_SUB_OFFSET(3)),
+    SubStrip(20, ledStrip + _LED_SUB_OFFSET(4)),
 };
 
 CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
 CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
 
-/**
+/*******************************************************************************
  * @brief Initialize ledstrip
  * 
- */
+ ******************************************************************************/
 void AppLED_init(void) {
     FastLED.addLeds<LED_CHIPSET, LED_DATA_PIN, LED_PIXEL_ORDER>(ledStrip, _LED_NB);
-	FastLED.setBrightness(LED_BRIGHTNESS);
+    FastLED.setBrightness(LED_BRIGHTNESS);
     FastLED.setCorrection(TypicalLEDStrip);
     FastLED.clear();
     FastLED.show();
     for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
         SubStrips[i].vSetAnimation(SubStrip::CHECKERED, pMyColorPalette1, 2000, 3);
     }
+#if APP_TASKS
+    xTaskCreate(vAppLedsTask, LED_TASK, LED_TASK_HEAP, LED_TASK_PARAM, LED_TASK_PRIO, LED_TASK_HANDLE);
+#endif
 }
 
-/**
- * @brief Fill ledstrip as gauge
+#if APP_TASKS
+/*******************************************************************************
+ * @brief AppLeds main task
  * 
- * @param CurrentVal
- * @param MaxVal
- * @param Color
- */
-void AppLED_fillGauge(int CurrentVal, int MinVal, int MaxVal) {
-    uint8_t u8MappedOut = map(CurrentVal, MinVal, MaxVal, 0, _LED_NB);
-    FastLED.clear();
-    fill_gradient_RGB(ledStrip, _LED_NB, CRGB::Red, CRGB::Blue);
-    fill_solid(ledStrip + (_LED_NB - u8MappedOut), u8MappedOut, CRGB::Black);
+ ******************************************************************************/
+void vAppLedsTask(void *pvParam) {
+    uint8_t u8Toggle = 0;
+    uint8_t u8SubIndex = 0;
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    uint32_t u32Now;
+    while (1) {
+        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(_LED_TIMEOUT));
+        u32Now = millis();
+        for (u8SubIndex = 0; u8SubIndex < LED_SUBSTRIP_NB; u8SubIndex++) {
+            SubStrips[u8SubIndex].vManageAnimation(u32Now);
+        }
+        FastLED.show();
+    }
 }
-
-/**
- * @brief Selftimed ledstrip frefresh
+#else
+/*******************************************************************************
+ * @brief Self-timed ledstrip refresh
  * 
- */
+ ******************************************************************************/
 void AppLED_showLoop(void) {
     static uint32_t u32Timeout = 0;
     static uint32_t u32ColorFlipTimeout = 0;
@@ -82,5 +93,6 @@ void AppLED_showLoop(void) {
         FastLED.show();
     }
 }
+#endif
 
 #endif // APP_FASTLED

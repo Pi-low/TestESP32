@@ -15,20 +15,27 @@
 
 #include <FastLED.h>
 
+#if APP_TASKS
+#define LED_TASK            "APP_LEDS"
+#define LED_TASK_HEAP       2048
+#define LED_TASK_PARAM      NULL
+#define LED_TASK_PRIO       2
+#define LED_TASK_HANDLE     NULL
+#endif
+
 #define LED_SUBSTRIP_LEN    20
 #define LED_SUBSTRIP_NB     5
-#define LED_DATA_PIN	    4
-#define LED_CHIPSET		    WS2812
-#define LED_PIXEL_ORDER	    GRB
-#define LED_BRIGHTNESS	    127
+#define LED_DATA_PIN        4
+#define LED_CHIPSET         WS2812
+#define LED_PIXEL_ORDER     GRB
+#define LED_BRIGHTNESS      127
 #define LED_REFRESH         50 //fps
 
-#define _LED_TIMEOUT		(1000/LED_REFRESH) //ms
-#define _LED_NB			    (LED_SUBSTRIP_LEN * LED_SUBSTRIP_NB)
-#define _SUB_OFFSET(x)      (x * LED_SUBSTRIP_LEN)
+#define _LED_TIMEOUT        (1000 / LED_REFRESH) //ms
+#define _LED_NB             (LED_SUBSTRIP_LEN * LED_SUBSTRIP_NB)
+#define _LED_SUB_OFFSET(x)  (x * LED_SUBSTRIP_LEN)
 
 void AppLED_init(void);
-void AppLED_fillGauge(int CurrentVal, int MinVal, int MaxVal);
 void AppLED_showLoop(void);
 
 #endif // APP_FASTLED

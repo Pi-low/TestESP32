@@ -1,7 +1,7 @@
 #include "App_Wifi.h"
 #include "App_Leds.h"
 
-#ifdef APP_WIFI
+#if defined(APP_WIFI) && APP_WIFI
 
 /**
  * @brief Initialize WiFi

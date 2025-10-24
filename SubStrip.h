@@ -70,6 +70,7 @@ private:
     /* Animation parameters */
     uint8_t _u8Index;
     uint8_t _u8DelayRate;
+    uint8_t _u8Offset;
     CRGB *_pPixel;
 
     bool _bTrigger;

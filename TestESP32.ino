@@ -10,30 +10,46 @@
 #include "App_Leds.h"
 #include "App_Wifi.h"
 
-uint32_t u32Timeout = 0;
-uint8_t u8FlipFlop = 0;
+#if APP_TASKS
+void vAppMain(void *pvParam);
+#endif
 
 void setup() {
 #if APP_PRINT
     Serial.begin(115200);
 #endif
-    pinMode(MODULE_LED, OUTPUT);
+    pinMode(ESP_LED_PIN, OUTPUT);
 #if APP_FASTLED
     AppLED_init();
 #endif
-#ifdef APP_WIFI
+#if APP_WIFI
 #if APP_PRINT
     Serial.println("Connection to " MY_SSID);
 #endif
     eAppWifi_init(5000);
 #endif
+#if APP_TASKS
+    xTaskCreate(vAppMain, MAIN_TASK, MAIN_TASK_HEAP, MAIN_TASK_PARAM, MAIN_TASK_PRIO, MAIN_TASK_HANDLE);
+#endif
 }
 
 void loop() {
-#ifdef APP_WIFI
+#if APP_WIFI
     eAppWifi_Tasking();
 #endif
-#if APP_FASTLED
+#if (APP_FASTLED) && (!APP_TASKS)
     AppLED_showLoop();
 #endif
 }
+
+#if APP_TASKS
+void vAppMain(void *pvParam) {
+    bool bToggle = 0;
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    while (1) {
+        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(MAIN_TASK_CYCLE));
+        bToggle ^= 1;
+        digitalWrite(ESP_LED_PIN, bToggle);
+    }
+}
+#endif

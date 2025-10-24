@@ -38,6 +38,7 @@ SubStrip::SubStrip(uint8_t u8NbLeds, CRGB *pLeds) {
     _u8Index = 0;
     _u8DelayRate = 0;
     _pPixel = NULL;
+    _u8Offset = 0;
     vClear();
 }
 
@@ -154,6 +155,10 @@ void SubStrip::vSetColorPalette(CRGB *ColorPalette) {
         u8SecureLoop++;
     }
 
+    if (_eCurrentAnimation == SubStrip::CHECKERED) {
+        initCheckered();
+    }
+
     _ColorPalette = ColorPalette;
 }
 
@@ -237,6 +242,8 @@ void SubStrip::vShiftFwd(CRGB *Color) {
         pLeds--;
     }
     _SubLeds[0] = last;
+    _u8Offset++;
+    _u8Offset %= _u8NbLeds;
 }
 
 /*******************************************************************************
@@ -260,6 +267,8 @@ void SubStrip::vShiftBwd(CRGB *Color) {
         pLeds++;
     }
     _SubLeds[_u8NbLeds - 1] = first;
+    _u8Offset++;
+    _u8Offset %= _u8NbLeds;
 }
 
 /*******************************************************************************
@@ -331,7 +340,7 @@ void SubStrip::initCheckered() {
     CRGB* pColor = _ColorPalette;
 
     for (uint8_t i = 0; i < _u8NbLeds; i++) {
-        if ((i % u8Repeat == 0) && i) {
+        if (((i + _u8Offset) % u8Repeat == 0) && i) {
             pColor++;
             if ((pColor - _ColorPalette) >= _u8ColorNb) {
                 pColor = _ColorPalette;
