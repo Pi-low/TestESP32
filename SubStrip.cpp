@@ -33,6 +33,7 @@ SubStrip::SubStrip(uint8_t u8NbLeds, CRGB *pLeds) {
     _u32Timeout = 0;
     _bTrigger = false;
     _u8Speed = 1;
+    _u8FadeRate = u8FadeTimeToRate(750);
 
     /* Init animation parameters */
     _u8Index = 0;
@@ -105,6 +106,9 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
 void SubStrip::vSetAnimation(TeAnimation eAnim) {
     if (eAnim >= SubStrip::NB_ANIMS)
     { return; } // Invalid animation type
+
+    _u8DelayRate = 0;
+    _u8Index = 0;
     
     switch(eAnim) {
         case SubStrip::CHECKERED:
@@ -184,6 +188,16 @@ void SubStrip::vSetSpeed(uint8_t u8Speed) {
  ******************************************************************************/
 void SubStrip::vSetPeriod(uint32_t u32Period) {
     _u32Period = u32Period ? u32Period : 100;
+}
+
+/*******************************************************************************
+ * @brief Set fading time for animation
+ * @param u16FadeDelay Fading delay in milliseconds
+ ******************************************************************************/
+void SubStrip::vSetFadeRate(uint16_t u16FadeDelay) {
+    if (!u16FadeDelay)
+    { return; }
+    _u8FadeRate = MAX(u8FadeTimeToRate(u16FadeDelay), 255);
 }
 
 /*******************************************************************************
@@ -279,8 +293,27 @@ void SubStrip::vInsertBwd(CRGB ColorFeed) {
     vShiftBwd(&ColorFeed);
 }
 
+uint8_t SubStrip::u8FadeTimeToRate(uint16_t u16FadeTime) {
+    return ((255*_SUBSTRIP_PERIOD)/(u16FadeTime));
+}
+
+/*******************************************************************************
+ * @brief Manage glitter animation
+ ******************************************************************************/
 void SubStrip::vAnimateGlitter() {
     // Placeholder for glitter animation
+    fadeToBlackBy(_SubLeds, _u8NbLeds, _u8FadeRate);
+    if ((_u8DelayRate % _u8Speed) == 0) {
+        _u8DelayRate = 0;
+        CRGB *pPixel = NULL;
+        for (uint8_t i = 0; i < _u8ColorNb; i++) {
+            pPixel = _SubLeds + (random8() % _u8NbLeds);
+            if (*pPixel == CRGB::Black) {
+                *pPixel = _ColorPalette[i];
+            }
+        }
+    }
+    _u8DelayRate++;
 }
 
 /*******************************************************************************
@@ -289,7 +322,7 @@ void SubStrip::vAnimateGlitter() {
 void SubStrip::vAnimateRaindrops() {
     if (_ColorPalette == NULL)
     { return; }
-    fadeToBlackBy(_SubLeds, _u8NbLeds, 90);
+    fadeToBlackBy(_SubLeds, _u8NbLeds, _u8FadeRate);
     if (_bTrigger && bIsBlack() && ((_u8Index >= _u8NbLeds) || !_u8Index)) {
         _bTrigger = false;
         _u8Index = 0;

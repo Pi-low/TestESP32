@@ -9,9 +9,14 @@
 #define _SUBSTRIP_H
 
 #include <FastLED.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
 
- #define SUBSTRIP_STOP_PERIODIC (uint32_t)(-1)
- #define SUBSTRIP_SECURE_LOOOP  30
+ #define SUBSTRIP_STOP_PERIODIC     (uint32_t)(-1)
+ #define SUBSTRIP_SECURE_LOOOP      0
+ #define SUBSTRIP_FPS               50
+ #define _SUBSTRIP_PERIOD           (1000/SUBSTRIP_FPS)
 
 class SubStrip {
 public:
@@ -50,6 +55,7 @@ public:
     void vTriggerAnim(void);
     void vSetSpeed(uint8_t u8Speed);
     void vSetPeriod(uint32_t u32Period);
+    void vSetFadeRate(uint16_t u16FadeDelay);
     void vSetDirection(TeDirection eDirection);
     void vClear(void);
     void vFillColor(CRGB color);
@@ -70,6 +76,7 @@ private:
     /* Animation parameters */
     uint8_t _u8Index;
     uint8_t _u8DelayRate;
+    uint8_t _u8FadeRate;
     uint8_t _u8Offset;
     CRGB *_pPixel;
 
@@ -79,6 +86,7 @@ private:
     void vInsertFwd(CRGB ColorFeed);
     void vShiftBwd(CRGB *Color);
     void vInsertBwd(CRGB ColorFeed);
+    uint8_t u8FadeTimeToRate(uint16_t u16FadeTime);
     void vAnimateGlitter(void);
     void vAnimateRaindrops(void);
     void vAnimateFire(void);

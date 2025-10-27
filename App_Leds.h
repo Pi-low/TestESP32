@@ -29,9 +29,9 @@
 #define LED_CHIPSET         WS2812
 #define LED_PIXEL_ORDER     GRB
 #define LED_BRIGHTNESS      127
-#define LED_REFRESH         50 //fps
+#define LED_REFRESH         SUBSTRIP_FPS // use constant from SubStrip
 
-#define _LED_TIMEOUT        (1000 / LED_REFRESH) //ms
+#define _LED_TIMEOUT        _SUBSTRIP_PERIOD //ms
 #define _LED_NB             (LED_SUBSTRIP_LEN * LED_SUBSTRIP_NB)
 #define _LED_SUB_OFFSET(x)  (x * LED_SUBSTRIP_LEN)
 
