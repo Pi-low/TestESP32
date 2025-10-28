@@ -14,9 +14,10 @@
 #include <stdio.h>
 
  #define SUBSTRIP_STOP_PERIODIC     (uint32_t)(-1)
- #define SUBSTRIP_SECURE_LOOOP      0
+ #define SUBSTRIP_SECURE_LOOOP      30
  #define SUBSTRIP_FPS               50
  #define _SUBSTRIP_PERIOD           (1000/SUBSTRIP_FPS)
+ #define _TRACE_DBG(x, arg...)      Serial.printf(x, ##arg)
 
 class SubStrip {
 public:
@@ -71,7 +72,7 @@ private:
     uint8_t _u8Speed; // Animation speed
     uint32_t _u32Period; // Animation period
     uint32_t _u32Timeout; // Current time for animation timing
-    TeDirection _eDirection;
+    TeDirection _eDirection = FORWARD_INOUT;
 
     /* Animation parameters */
     uint8_t _u8Index;

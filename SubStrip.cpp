@@ -33,7 +33,7 @@ SubStrip::SubStrip(uint8_t u8NbLeds, CRGB *pLeds) {
     _u32Timeout = 0;
     _bTrigger = false;
     _u8Speed = 1;
-    _u8FadeRate = u8FadeTimeToRate(750);
+    _u8FadeRate = u8FadeTimeToRate(500);
 
     /* Init animation parameters */
     _u8Index = 0;
@@ -71,12 +71,12 @@ void SubStrip::vGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
  ******************************************************************************/
 void SubStrip::vManageAnimation(uint32_t u32Now) {
     switch (_eCurrentAnimation) {
-        case SubStrip::GLITTER:
+        case GLITTER:
             // Call glitter animation function
             vAnimateGlitter();
             break;
 
-        case SubStrip::RAINDROPS:
+        case RAINDROPS:
             // Call raindrops animation function
             if ((_u32Timeout < u32Now) && (_u32Period != SUBSTRIP_STOP_PERIODIC)) {
                 _u32Timeout = u32Now + _u32Period;
@@ -85,12 +85,12 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
             vAnimateRaindrops();
             break;
 
-        case SubStrip::FIRE:
+        case FIRE:
             // Call fire animation function
             vAnimateFire();
             break;
 
-        case SubStrip::CHECKERED:
+        case CHECKERED:
             // Call checkered animation function
             vAnimateCheckered();
             break;
@@ -104,8 +104,12 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
  * @brief Set animation
  ******************************************************************************/
 void SubStrip::vSetAnimation(TeAnimation eAnim) {
-    if (eAnim >= SubStrip::NB_ANIMS)
-    { return; } // Invalid animation type
+    if (eAnim >= SubStrip::NB_ANIMS) {
+#ifdef _TRACE_DBG
+        _TRACE_DBG("[Substrip] vSetAnimation -> Invalid parameter: %d\r\n", eAnim);
+#endif
+        return;
+    } // Invalid animation type
 
     _u8DelayRate = 0;
     _u8Index = 0;
@@ -143,10 +147,18 @@ void SubStrip::vSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Peri
 void SubStrip::vSetColorPalette(CRGB *ColorPalette) {
 
     /* Protect from bad parameters */
-    if (ColorPalette == NULL)
-    { return; }
-    else if (*ColorPalette == CRGB::Black)
-    { return; }
+    if (ColorPalette == NULL) {
+#ifdef _TRACE_DBG
+        _TRACE_DBG("[Substrip] vSetColorPalette -> NULL pointer\r\n");
+#endif
+        return;
+    }
+    else if (*ColorPalette == CRGB::Black) {
+#ifdef _TRACE_DBG
+        _TRACE_DBG("[Substrip] vSetColorPalette -> Invalid parameter\r\n");
+#endif
+        return;
+    }
 
     CRGB *pColor = ColorPalette;
 
@@ -195,9 +207,18 @@ void SubStrip::vSetPeriod(uint32_t u32Period) {
  * @param u16FadeDelay Fading delay in milliseconds
  ******************************************************************************/
 void SubStrip::vSetFadeRate(uint16_t u16FadeDelay) {
-    if (!u16FadeDelay)
-    { return; }
-    _u8FadeRate = MAX(u8FadeTimeToRate(u16FadeDelay), 255);
+    if (!u16FadeDelay) {
+#ifdef _TRACE_DBG
+        _TRACE_DBG("[Substrip] vSetFadeRate -> Invalid parameter\r\n");
+#endif
+        return;
+    }
+    _u8FadeRate = u8FadeTimeToRate(u16FadeDelay);
+#ifdef _TRACE_DBG
+        _TRACE_DBG("[Substrip] vSetFadeRate -> set: %u\r\n", _u8FadeRate);
+#endif
+    if (!_u8FadeRate)
+    { _u8FadeRate = 1; }
 }
 
 /*******************************************************************************
@@ -205,8 +226,12 @@ void SubStrip::vSetFadeRate(uint16_t u16FadeDelay) {
  * @param eDirection
  ******************************************************************************/
 void SubStrip::vSetDirection(TeDirection eDirection) {
-    if (eDirection > REVERSE_OUTIN)
-    { return; }
+    if (eDirection > REVERSE_OUTIN) {
+#ifdef _TRACE_DBG
+        _TRACE_DBG("[Substrip] vSetDirection -> Invalid parameter: %d\r\n", eDirection);
+#endif
+        return;
+    }
     _eDirection = eDirection;
 }
 
@@ -294,7 +319,7 @@ void SubStrip::vInsertBwd(CRGB ColorFeed) {
 }
 
 uint8_t SubStrip::u8FadeTimeToRate(uint16_t u16FadeTime) {
-    return ((255*_SUBSTRIP_PERIOD)/(u16FadeTime));
+    return ((255*_SUBSTRIP_PERIOD)/u16FadeTime);
 }
 
 /*******************************************************************************
@@ -363,10 +388,18 @@ void SubStrip::vAnimateCheckered() {
  * @brief Initialize checkered animation
  ******************************************************************************/
 void SubStrip::initCheckered() {
-    if (!_u8ColorNb)
-    { return; }
-    else if (_ColorPalette == NULL)
-    { return; }
+    if (!_u8ColorNb){
+#ifdef _TRACE_DBG
+        _TRACE_DBG("[Substrip] initCheckered -> Empty palette\r\n");
+#endif
+        return;
+    }
+    else if (_ColorPalette == NULL) {
+#ifdef _TRACE_DBG
+        _TRACE_DBG("[Substrip] initCheckered -> NULL pointer\r\n");
+#endif
+        return;
+    }
 
     uint8_t u8Repeat = _u8NbLeds / _u8ColorNb;
     CRGB* pLed = _SubLeds;

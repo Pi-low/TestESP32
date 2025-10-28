@@ -20,13 +20,23 @@
 #define ESP_LED_PIN     8
 #define APP_PRINT       1
 
+/*******************************************************************************
+ *  DEBUG CONFIGURATION 
+ ******************************************************************************/
+// #if APP_PRINT
+// #define _TRACE_DBG(x, arg...) Serial.printf(x, ##arg)
+// #endif
+
+/*******************************************************************************
+ *  TASKING CONFIGURATION 
+ ******************************************************************************/
 #if APP_TASKS
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 // Defines main task
-#define MAIN_TASK            "APP_MAIN"
-#define MAIN_TASK_HEAP      512
+#define MAIN_TASK           "APP_MAIN"
+#define MAIN_TASK_HEAP      512 //configMINIMAL_STACK_SIZE
 #define MAIN_TASK_PARAM     NULL
 #define MAIN_TASK_PRIO      1
 #define MAIN_TASK_HANDLE    NULL

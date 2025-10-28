@@ -17,7 +17,7 @@
 
 #if APP_TASKS
 #define LED_TASK            "APP_LEDS"
-#define LED_TASK_HEAP       2048
+#define LED_TASK_HEAP       4096 //(configMINIMAL_STACK_SIZE*4)
 #define LED_TASK_PARAM      NULL
 #define LED_TASK_PRIO       2
 #define LED_TASK_HANDLE     NULL
@@ -34,6 +34,7 @@
 #define _LED_TIMEOUT        _SUBSTRIP_PERIOD //ms
 #define _LED_NB             (LED_SUBSTRIP_LEN * LED_SUBSTRIP_NB)
 #define _LED_SUB_OFFSET(x)  (x * LED_SUBSTRIP_LEN)
+#define _LOOP_CNT_MS(x)     (x/_LED_TIMEOUT)
 
 void AppLED_init(void);
 void AppLED_showLoop(void);
