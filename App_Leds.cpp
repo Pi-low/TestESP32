@@ -12,7 +12,17 @@
 
 #include "SubStrip.h"
 
-void vAppLedsTask(void *pvParam);
+static CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
+static CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
+
+typedef struct {
+    SubStrip::TeAnimation eAnimation;
+    uint32_t u32Period;
+    uint8_t u8Offset;
+    uint8_t u8Speed;
+    SubStrip::TeDirection eDirection;
+    CRGB* pPalette;
+} TstConfig;
 
 static CRGB ledStrip[_LED_NB];
 static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
@@ -23,23 +33,38 @@ static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
     SubStrip(20, ledStrip + _LED_SUB_OFFSET(4)),
 };
 
-static CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
-static CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
+static const TstConfig AnimationConfig[LED_SUBSTRIP_NB] = {
+//   Animation            Period    Offset  Speed   Direction                   Palette
+    {SubStrip::CHECKERED, 2000,     0,      3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+    {SubStrip::CHECKERED, 2000,     5,      3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+    {SubStrip::CHECKERED, 2000,     10,     3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+    {SubStrip::CHECKERED, 2000,     15,     3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+    {SubStrip::CHECKERED, 2000,     20,     3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+};
+
+#if APP_TASKS
+void vAppLedsTask(void *pvParam);
+#endif
 
 /*******************************************************************************
  * @brief Initialize ledstrip
  * 
  ******************************************************************************/
 void AppLED_init(void) {
-    uint8_t u8Toggle = 0;
     FastLED.addLeds<LED_CHIPSET, LED_DATA_PIN, LED_PIXEL_ORDER>(ledStrip, _LED_NB);
     FastLED.setBrightness(LED_BRIGHTNESS);
     FastLED.setCorrection(TypicalLEDStrip);
     FastLED.clear();
     FastLED.show();
+    TstConfig *pstConfig = (TstConfig*)AnimationConfig;
+    SubStrip *pObj = SubStrips;
     for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
-        u8Toggle ^= 1;
-        SubStrips[i].eSetAnimation(SubStrip::GLITTER, u8Toggle ? pMyColorPalette1 : pMyColorPalette2, 2000, 3);
+        pObj->eSetOffset(pstConfig->u8Offset);
+        if (pObj->eSetAnimation(pstConfig->eAnimation, pstConfig->pPalette, pstConfig->u32Period, pstConfig->u8Speed) < SubStrip::RET_OK) {
+            Serial.printf("[AppLED_init] SubStrip %u initialization failed\r\n", i);
+        }
+        pstConfig++;
+        pObj++;
     }
 #if APP_TASKS
     xTaskCreate(vAppLedsTask, LED_TASK, LED_TASK_HEAP, LED_TASK_PARAM, LED_TASK_PRIO, LED_TASK_HANDLE);

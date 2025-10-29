@@ -12,12 +12,13 @@
 #endif
 
 #ifdef VERBOSE_DEBUG
-#define _MNG_RETURN(x)             do{\
-                                       eRet = x;\
-                                       Serial.printf(__FUNCTION__ ": %u", eRet);\
-                                       } while (0)
+// __FUNCTION__ macro not supported on ESP32C3 (Risc-V compiler)
+#define _MNG_RETURN(x)  do {\
+                            eRet = x;\
+                            Serial.printf(__FUNCTION__ ": %u", eRet);\ 
+                        } while (0)
 #else
-#define _MNG_RETURN(x)              eRet = x
+#define _MNG_RETURN(x)  eRet = x
 #endif
 
 /******************************************************************************/
@@ -71,10 +72,10 @@ SubStrip::~SubStrip() {
  * @param leds Pointer to the destination LED array.
  * @param u8NbLeds Number of LEDs to copy.
  ******************************************************************************/
-TeSubstrip_RetVal SubStrip::eGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
-    TeSubstrip_RetVal eRet = SUBSTRP_OK;
+SubStrip::TeRetVal SubStrip::eGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
+    TeRetVal eRet = RET_OK;
     if ((u8NbLeds > _u8NbLeds) || (leds == NULL) || !_bDynamic) {
-        _MNG_RETURN(SUBSTRP_INTERNAL_ERROR);
+        _MNG_RETURN(RET_INTERNAL_ERROR);
     }
     else {
         memcpy(leds, _SubLeds, u8NbLeds * sizeof(CRGB));
@@ -119,10 +120,10 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
 /*******************************************************************************
  * @brief Set animation
  ******************************************************************************/
-TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim) {
-    TeSubstrip_RetVal eRet = SUBSTRP_OK;
+SubStrip::SubStrip::TeRetVal SubStrip::eSetAnimation(TeAnimation eAnim) {
+    TeRetVal eRet = RET_OK;
     if (eAnim >= SubStrip::NB_ANIMS) {
-        _MNG_RETURN(SUBSTRP_BAD_PARAMETER);
+        _MNG_RETURN(RET_BAD_PARAMETER);
     }
     else {
         _u8DelayRate = 0;
@@ -140,25 +141,26 @@ TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim) {
     return eRet;
 }
 
-TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette) {
-    TeSubstrip_RetVal eRet = eSetColorPalette(pPalette);
-    if (eRet >= SUBSTRP_OK) {
+SubStrip::TeRetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette) {
+    TeRetVal eRet = eSetColorPalette(pPalette);
+    if (eRet >= RET_OK) {
         eRet = eSetAnimation(eAnim);
     }
     return eRet;
 }
 
-TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period) {
-    TeSubstrip_RetVal eRet = eSetColorPalette(pPalette);
-    if (eRet >= SUBSTRP_OK) {
+SubStrip::TeRetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period) {
+    TeRetVal eRet = eSetColorPalette(pPalette);
+    if (eRet >= RET_OK) {
         eRet = eSetAnimation(eAnim);
         eSetPeriod(u32Period);
     }
     return eRet;
 }
-TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period, uint8_t u8Speed) {
-    TeSubstrip_RetVal eRet = eSetColorPalette(pPalette);
-    if (eRet >= SUBSTRP_OK) {
+
+SubStrip::TeRetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period, uint8_t u8Speed) {
+    TeRetVal eRet = eSetColorPalette(pPalette);
+    if (eRet >= RET_OK) {
         eRet = eSetAnimation(eAnim);
         eSetPeriod(u32Period);
         eSetSpeed(u8Speed);
@@ -169,14 +171,14 @@ TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uin
 /*******************************************************************************
  * @brief Set color palette
  ******************************************************************************/
-TeSubstrip_RetVal SubStrip::eSetColorPalette(CRGB *ColorPalette) {
-TeSubstrip_RetVal eRet = SUBSTRP_OK;
+SubStrip::TeRetVal SubStrip::eSetColorPalette(CRGB *ColorPalette) {
+TeRetVal eRet = RET_OK;
     /* Protect from bad parameters */
     if (ColorPalette == NULL) {
-        _MNG_RETURN(SUBSTRP_BAD_PARAMETER);
+        _MNG_RETURN(RET_BAD_PARAMETER);
     }
     else if (*ColorPalette == CRGB::Black) {
-        _MNG_RETURN(SUBSTRP_GENERIC_ERROR);
+        _MNG_RETURN(RET_GENERIC_ERROR);
     }
     else {
         CRGB *pColor = ColorPalette;
@@ -211,28 +213,28 @@ void SubStrip::vTriggerAnim(void) {
  * @details speed is expressed a multiple of animation callrate
  * @param u8Speed [1-255] fast -> slow
  ******************************************************************************/
-TeSubstrip_RetVal SubStrip::eSetSpeed(uint8_t u8Speed) {
+SubStrip::TeRetVal SubStrip::eSetSpeed(uint8_t u8Speed) {
     _u8Speed = u8Speed ? u8Speed : 1;
-    return SUBSTRP_OK;
+    return RET_OK;
 }
 
 /*******************************************************************************
  * @brief Set animation period
  * @param u32Period SUBSTRIP_STOP_PERIODIC will stop periodic triggering
  ******************************************************************************/
-TeSubstrip_RetVal SubStrip::eSetPeriod(uint32_t u32Period) {
+SubStrip::TeRetVal SubStrip::eSetPeriod(uint32_t u32Period) {
     _u32Period = u32Period ? u32Period : 100;
-    return SUBSTRP_OK;
+    return RET_OK;
 }
 
 /*******************************************************************************
  * @brief Set fading time for animation
  * @param u16FadeDelay Fading delay in milliseconds
  ******************************************************************************/
-TeSubstrip_RetVal SubStrip::eSetFadeRate(uint16_t u16FadeDelay) {
-    TeSubstrip_RetVal eRet = SUBSTRP_OK;
+SubStrip::TeRetVal SubStrip::eSetFadeRate(uint16_t u16FadeDelay) {
+    TeRetVal eRet = RET_OK;
     if (!u16FadeDelay) {
-        _MNG_RETURN(SUBSTRP_BAD_PARAMETER);
+        _MNG_RETURN(RET_BAD_PARAMETER);
     }
     else {
         _u8FadeRate = u8FadeTimeToRate(u16FadeDelay);
@@ -249,13 +251,28 @@ TeSubstrip_RetVal SubStrip::eSetFadeRate(uint16_t u16FadeDelay) {
  * @brief Set animation period
  * @param eDirection
  ******************************************************************************/
-TeSubstrip_RetVal SubStrip::eSetDirection(TeDirection eDirection) {
-    TeSubstrip_RetVal eRet = SUBSTRP_OK;
+SubStrip::TeRetVal SubStrip::eSetDirection(TeDirection eDirection) {
+    TeRetVal eRet = RET_OK;
     if (eDirection > REVERSE_OUTIN) {
-        _MNG_RETURN(SUBSTRP_BAD_PARAMETER);
+        _MNG_RETURN(RET_BAD_PARAMETER);
     }
     else {
         _eDirection = eDirection;
+    }
+    return eRet;
+}
+
+/*******************************************************************************
+ * @brief Set the offset for the sub-strip
+ * @param u8Offset The offset value
+ ******************************************************************************/
+SubStrip::TeRetVal SubStrip::eSetOffset(uint8_t u8Offset) {
+    TeRetVal eRet = RET_OK;
+    if (u8Offset > _u8NbLeds) {
+        _MNG_RETURN(RET_BAD_PARAMETER);
+    }
+    else {
+        _u8Offset = u8Offset;
     }
     return eRet;
 }
@@ -412,10 +429,10 @@ void SubStrip::vAnimateCheckered() {
 /*******************************************************************************
  * @brief Initialize checkered animation
  ******************************************************************************/
-TeSubstrip_RetVal SubStrip::eInitCheckered() {
-    TeSubstrip_RetVal eRet = SUBSTRP_OK;
+SubStrip::TeRetVal SubStrip::eInitCheckered() {
+    TeRetVal eRet = RET_OK;
     if ((!_u8ColorNb) || (_ColorPalette == NULL)){
-        _MNG_RETURN(SUBSTRP_INTERNAL_ERROR);
+        _MNG_RETURN(RET_INTERNAL_ERROR);
     }
     else {
         uint8_t u8Repeat = _u8NbLeds / _u8ColorNb;

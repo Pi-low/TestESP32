@@ -18,16 +18,16 @@
 #define SUBSTRIP_FPS               50
 #define _SUBSTRIP_PERIOD           (1000/SUBSTRIP_FPS)
 
-typedef enum {
-        SUBSTRP_WARNING             = 1,
-        SUBSTRP_OK                  = 0,
-        SUBSTRP_GENERIC_ERROR       = -1,
-        SUBSTRP_BAD_PARAMETER       = SUBSTRP_GENERIC_ERROR - 1,
-        SUBSTRP_INTERNAL_ERROR      = SUBSTRP_GENERIC_ERROR - 2,
-} TeSubstrip_RetVal;
-
 class SubStrip {
 public:
+    typedef enum {
+        RET_WARNING             = 1,
+        RET_OK                  = 0,
+        RET_GENERIC_ERROR       = -1,
+        RET_BAD_PARAMETER       = RET_GENERIC_ERROR - 1,
+        RET_INTERNAL_ERROR      = RET_GENERIC_ERROR - 2,
+    } TeRetVal;
+
     typedef enum {
         NONE,
         GLITTER,
@@ -42,29 +42,21 @@ public:
         REVERSE_OUTIN
     } TeDirection;
 
-    typedef struct {
-        TeAnimation eAnimation;
-        uint32_t u32Period;
-        uint32_t u32TimOffset; //aka phase shift
-        uint8_t u8Speed;
-        TeDirection eDirection;
-        CRGB* pColors;
-    } TstConfig;
-
     SubStrip(uint8_t u8NbLeds, CRGB *pLeds);
     ~SubStrip();
-    TeSubstrip_RetVal eGetSubStrip(CRGB *leds, uint8_t u8NbLeds);
+    TeRetVal eGetSubStrip(CRGB *leds, uint8_t u8NbLeds);
     void vManageAnimation(uint32_t u32Now); // to be called into loop()
-    TeSubstrip_RetVal eSetAnimation(TeAnimation eAnim);
-    TeSubstrip_RetVal eSetAnimation(TeAnimation eAnim, CRGB *pPalette);
-    TeSubstrip_RetVal eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period);
-    TeSubstrip_RetVal eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period, uint8_t u8Speed);
-    TeSubstrip_RetVal eSetColorPalette(CRGB *ColorPalette);
+    TeRetVal eSetAnimation(TeAnimation eAnim);
+    TeRetVal eSetAnimation(TeAnimation eAnim, CRGB *pPalette);
+    TeRetVal eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period);
+    TeRetVal eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period, uint8_t u8Speed);
+    TeRetVal eSetColorPalette(CRGB *ColorPalette);
     void vTriggerAnim(void);
-    TeSubstrip_RetVal eSetSpeed(uint8_t u8Speed);
-    TeSubstrip_RetVal eSetPeriod(uint32_t u32Period);
-    TeSubstrip_RetVal eSetFadeRate(uint16_t u16FadeDelay);
-    TeSubstrip_RetVal eSetDirection(TeDirection eDirection);
+    TeRetVal eSetSpeed(uint8_t u8Speed);
+    TeRetVal eSetPeriod(uint32_t u32Period);
+    TeRetVal eSetFadeRate(uint16_t u16FadeDelay);
+    TeRetVal eSetDirection(TeDirection eDirection);
+    TeRetVal eSetOffset(uint8_t u8Offset);
     void vClear(void);
     void vFillColor(CRGB color);
     bool bIsBlack(void);
@@ -99,7 +91,7 @@ private:
     void vAnimateRaindrops(void);
     void vAnimateFire(void);
     void vAnimateCheckered(void);
-    TeSubstrip_RetVal eInitCheckered(void);
+    TeRetVal eInitCheckered(void);
 };
 
 #endif // _SUBSTRIP_H
