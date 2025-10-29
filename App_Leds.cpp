@@ -82,11 +82,14 @@ void vAppLedsTask(void *pvParam) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     uint32_t u32Now;
     uint16_t u16Cnt = 0;
+    SubStrip *pObj;
     while (1) {
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(_LED_TIMEOUT));
         u32Now = millis();
+        pObj = SubStrips;
         for (u8SubIndex = 0; u8SubIndex < LED_SUBSTRIP_NB; u8SubIndex++) {
-            SubStrips[u8SubIndex].vManageAnimation(u32Now);
+            pObj->vManageAnimation(u32Now);
+            pObj++;
         }
         FastLED.show();
         if ((u16Cnt % _LOOP_CNT_MS(1000)) == 0) {
