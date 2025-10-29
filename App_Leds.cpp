@@ -39,7 +39,7 @@ void AppLED_init(void) {
     FastLED.show();
     for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
         u8Toggle ^= 1;
-        SubStrips[i].vSetAnimation(SubStrip::GLITTER, u8Toggle ? pMyColorPalette1 : pMyColorPalette2, 2000, 3);
+        SubStrips[i].eSetAnimation(SubStrip::GLITTER, u8Toggle ? pMyColorPalette1 : pMyColorPalette2, 2000, 3);
     }
 #if APP_TASKS
     xTaskCreate(vAppLedsTask, LED_TASK, LED_TASK_HEAP, LED_TASK_PARAM, LED_TASK_PRIO, LED_TASK_HANDLE);

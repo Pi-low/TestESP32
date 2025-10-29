@@ -7,6 +7,19 @@
 
 #include "SubStrip.h"
 
+#ifndef _TRACE_DBG
+#define _TRACE_DBG(x, arg...)      Serial.printf(x, ##arg)
+#endif
+
+#ifdef VERBOSE_DEBUG
+#define _MNG_RETURN(x)             do{\
+                                       eRet = x;\
+                                       Serial.printf(__FUNCTION__ ": %u", eRet);\
+                                       } while (0)
+#else
+#define _MNG_RETURN(x)              eRet = x
+#endif
+
 /******************************************************************************/
 /* Public methods                                                             */
 /******************************************************************************/
@@ -58,12 +71,15 @@ SubStrip::~SubStrip() {
  * @param leds Pointer to the destination LED array.
  * @param u8NbLeds Number of LEDs to copy.
  ******************************************************************************/
-void SubStrip::vGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
+TeSubstrip_RetVal SubStrip::eGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
+    TeSubstrip_RetVal eRet = SUBSTRP_OK;
     if ((u8NbLeds > _u8NbLeds) || (leds == NULL) || !_bDynamic) {
-        // Handle error: number of LEDs does not match
-        return;
+        _MNG_RETURN(SUBSTRP_INTERNAL_ERROR);
     }
-    memcpy(leds, _SubLeds, u8NbLeds * sizeof(CRGB));
+    else {
+        memcpy(leds, _SubLeds, u8NbLeds * sizeof(CRGB));
+    }
+    return eRet;
 }
 
 /*******************************************************************************
@@ -103,79 +119,84 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
 /*******************************************************************************
  * @brief Set animation
  ******************************************************************************/
-void SubStrip::vSetAnimation(TeAnimation eAnim) {
+TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim) {
+    TeSubstrip_RetVal eRet = SUBSTRP_OK;
     if (eAnim >= SubStrip::NB_ANIMS) {
-#ifdef _TRACE_DBG
-        _TRACE_DBG("[Substrip] vSetAnimation -> Invalid parameter: %d\r\n", eAnim);
-#endif
-        return;
-    } // Invalid animation type
-
-    _u8DelayRate = 0;
-    _u8Index = 0;
-    
-    switch(eAnim) {
-        case SubStrip::CHECKERED:
-            initCheckered();
-            break;
-        default:
-            break;
+        _MNG_RETURN(SUBSTRP_BAD_PARAMETER);
     }
-    _eCurrentAnimation = eAnim;
+    else {
+        _u8DelayRate = 0;
+        _u8Index = 0;
+
+        switch(eAnim) {
+            case SubStrip::CHECKERED:
+                eRet = eInitCheckered();
+                break;
+            default:
+                break;
+        }
+        _eCurrentAnimation = eAnim;
+    }
+    return eRet;
 }
 
-void SubStrip::vSetAnimation(TeAnimation eAnim, CRGB *pPalette) {
-    vSetColorPalette(pPalette);
-    vSetAnimation(eAnim);
+TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette) {
+    TeSubstrip_RetVal eRet = eSetColorPalette(pPalette);
+    if (eRet >= SUBSTRP_OK) {
+        eRet = eSetAnimation(eAnim);
+    }
+    return eRet;
 }
 
-void SubStrip::vSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period) {
-    vSetColorPalette(pPalette);
-    vSetAnimation(eAnim);
-    vSetPeriod(u32Period);
+TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period) {
+    TeSubstrip_RetVal eRet = eSetColorPalette(pPalette);
+    if (eRet >= SUBSTRP_OK) {
+        eRet = eSetAnimation(eAnim);
+        eSetPeriod(u32Period);
+    }
+    return eRet;
 }
-void SubStrip::vSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period, uint8_t u8Speed) {
-    vSetColorPalette(pPalette);
-    vSetAnimation(eAnim);
-    vSetPeriod(u32Period);
-    vSetSpeed(u8Speed);
+TeSubstrip_RetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette, uint32_t u32Period, uint8_t u8Speed) {
+    TeSubstrip_RetVal eRet = eSetColorPalette(pPalette);
+    if (eRet >= SUBSTRP_OK) {
+        eRet = eSetAnimation(eAnim);
+        eSetPeriod(u32Period);
+        eSetSpeed(u8Speed);
+    }
+    return eRet;
 }
 
 /*******************************************************************************
  * @brief Set color palette
  ******************************************************************************/
-void SubStrip::vSetColorPalette(CRGB *ColorPalette) {
-
+TeSubstrip_RetVal SubStrip::eSetColorPalette(CRGB *ColorPalette) {
+TeSubstrip_RetVal eRet = SUBSTRP_OK;
     /* Protect from bad parameters */
     if (ColorPalette == NULL) {
-#ifdef _TRACE_DBG
-        _TRACE_DBG("[Substrip] vSetColorPalette -> NULL pointer\r\n");
-#endif
-        return;
+        _MNG_RETURN(SUBSTRP_BAD_PARAMETER);
     }
     else if (*ColorPalette == CRGB::Black) {
-#ifdef _TRACE_DBG
-        _TRACE_DBG("[Substrip] vSetColorPalette -> Invalid parameter\r\n");
-#endif
-        return;
+        _MNG_RETURN(SUBSTRP_GENERIC_ERROR);
     }
+    else {
+        CRGB *pColor = ColorPalette;
 
-    CRGB *pColor = ColorPalette;
+        /* auto-detect nomber of colors */
+        _u8ColorNb = 0;
+        uint8_t u8SecureLoop = 0;
+        while (*pColor && (*pColor != CRGB::Black) && (u8SecureLoop < SUBSTRIP_SECURE_LOOOP)) {
+            _u8ColorNb++;
+            pColor++;
+            u8SecureLoop++;
+        }
 
-    /* auto-detect nomber of colors */
-    _u8ColorNb = 0;
-    uint8_t u8SecureLoop = 0;
-    while (*pColor && (*pColor != CRGB::Black) && (u8SecureLoop < SUBSTRIP_SECURE_LOOOP)) {
-        _u8ColorNb++;
-        pColor++;
-        u8SecureLoop++;
+        if (_eCurrentAnimation == SubStrip::CHECKERED) {
+            eRet = eInitCheckered();
+        }
+
+        _ColorPalette = ColorPalette;
     }
-
-    if (_eCurrentAnimation == SubStrip::CHECKERED) {
-        initCheckered();
-    }
-
-    _ColorPalette = ColorPalette;
+    return eRet;
 }
 
 /*******************************************************************************
@@ -190,49 +211,53 @@ void SubStrip::vTriggerAnim(void) {
  * @details speed is expressed a multiple of animation callrate
  * @param u8Speed [1-255] fast -> slow
  ******************************************************************************/
-void SubStrip::vSetSpeed(uint8_t u8Speed) {
+TeSubstrip_RetVal SubStrip::eSetSpeed(uint8_t u8Speed) {
     _u8Speed = u8Speed ? u8Speed : 1;
+    return SUBSTRP_OK;
 }
 
 /*******************************************************************************
  * @brief Set animation period
  * @param u32Period SUBSTRIP_STOP_PERIODIC will stop periodic triggering
  ******************************************************************************/
-void SubStrip::vSetPeriod(uint32_t u32Period) {
+TeSubstrip_RetVal SubStrip::eSetPeriod(uint32_t u32Period) {
     _u32Period = u32Period ? u32Period : 100;
+    return SUBSTRP_OK;
 }
 
 /*******************************************************************************
  * @brief Set fading time for animation
  * @param u16FadeDelay Fading delay in milliseconds
  ******************************************************************************/
-void SubStrip::vSetFadeRate(uint16_t u16FadeDelay) {
+TeSubstrip_RetVal SubStrip::eSetFadeRate(uint16_t u16FadeDelay) {
+    TeSubstrip_RetVal eRet = SUBSTRP_OK;
     if (!u16FadeDelay) {
-#ifdef _TRACE_DBG
-        _TRACE_DBG("[Substrip] vSetFadeRate -> Invalid parameter\r\n");
-#endif
-        return;
+        _MNG_RETURN(SUBSTRP_BAD_PARAMETER);
     }
-    _u8FadeRate = u8FadeTimeToRate(u16FadeDelay);
+    else {
+        _u8FadeRate = u8FadeTimeToRate(u16FadeDelay);
 #ifdef _TRACE_DBG
-        _TRACE_DBG("[Substrip] vSetFadeRate -> set: %u\r\n", _u8FadeRate);
+            _TRACE_DBG("[Substrip] vSetFadeRate -> set: %u\r\n", _u8FadeRate);
 #endif
-    if (!_u8FadeRate)
-    { _u8FadeRate = 1; }
+        if (!_u8FadeRate)
+        { _u8FadeRate = 1; }
+    }
+    return eRet;
 }
 
 /*******************************************************************************
  * @brief Set animation period
  * @param eDirection
  ******************************************************************************/
-void SubStrip::vSetDirection(TeDirection eDirection) {
+TeSubstrip_RetVal SubStrip::eSetDirection(TeDirection eDirection) {
+    TeSubstrip_RetVal eRet = SUBSTRP_OK;
     if (eDirection > REVERSE_OUTIN) {
-#ifdef _TRACE_DBG
-        _TRACE_DBG("[Substrip] vSetDirection -> Invalid parameter: %d\r\n", eDirection);
-#endif
-        return;
+        _MNG_RETURN(SUBSTRP_BAD_PARAMETER);
     }
-    _eDirection = eDirection;
+    else {
+        _eDirection = eDirection;
+    }
+    return eRet;
 }
 
 /*******************************************************************************
@@ -387,32 +412,26 @@ void SubStrip::vAnimateCheckered() {
 /*******************************************************************************
  * @brief Initialize checkered animation
  ******************************************************************************/
-void SubStrip::initCheckered() {
-    if (!_u8ColorNb){
-#ifdef _TRACE_DBG
-        _TRACE_DBG("[Substrip] initCheckered -> Empty palette\r\n");
-#endif
-        return;
+TeSubstrip_RetVal SubStrip::eInitCheckered() {
+    TeSubstrip_RetVal eRet = SUBSTRP_OK;
+    if ((!_u8ColorNb) || (_ColorPalette == NULL)){
+        _MNG_RETURN(SUBSTRP_INTERNAL_ERROR);
     }
-    else if (_ColorPalette == NULL) {
-#ifdef _TRACE_DBG
-        _TRACE_DBG("[Substrip] initCheckered -> NULL pointer\r\n");
-#endif
-        return;
-    }
+    else {
+        uint8_t u8Repeat = _u8NbLeds / _u8ColorNb;
+        CRGB* pLed = _SubLeds;
+        CRGB* pColor = _ColorPalette;
 
-    uint8_t u8Repeat = _u8NbLeds / _u8ColorNb;
-    CRGB* pLed = _SubLeds;
-    CRGB* pColor = _ColorPalette;
-
-    for (uint8_t i = 0; i < _u8NbLeds; i++) {
-        if (((i + _u8Offset) % u8Repeat == 0) && i) {
-            pColor++;
-            if ((pColor - _ColorPalette) >= _u8ColorNb) {
-                pColor = _ColorPalette;
+        for (uint8_t i = 0; i < _u8NbLeds; i++) {
+            if (((i + _u8Offset) % u8Repeat == 0) && i) {
+                pColor++;
+                if ((pColor - _ColorPalette) >= _u8ColorNb) {
+                    pColor = _ColorPalette;
+                }
             }
+            *pLed = *pColor;
+            pLed++;
         }
-        *pLed = *pColor;
-        pLed++;
     }
+    return eRet;
 }
