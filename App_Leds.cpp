@@ -7,14 +7,37 @@
  */
 
 #include "App_Leds.h"
+#include "App_PrintUtils.h"
 
 #if defined(APP_FASTLED) && APP_FASTLED
 
 #include "SubStrip.h"
 
-static CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
-static CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
+/*******************************************************************************
+ *  CONFIGURATION
+ ******************************************************************************/
+#define LED_DATA_PIN        4
+#define LED_CHIPSET         WS2812
+#define LED_PIXEL_ORDER     GRB
+#define LED_BRIGHTNESS      127
+#define LED_CHANGE_DELAY    5000
 
+#if APP_TASKS
+#define LED_TASK            "APP_LEDS"
+#define LED_TASK_HEAP       4096 //(configMINIMAL_STACK_SIZE*4)
+#define LED_TASK_PARAM      NULL
+#define LED_TASK_PRIO       2
+#define LED_TASK_HANDLE     NULL
+#endif
+
+#define _LED_TIMEOUT        _SUBSTRIP_PERIOD //ms
+#define _LED_NB             (LED_SUBSTRIP_LEN * LED_SUBSTRIP_NB)
+#define _LED_SUB_OFFSET(x)  (x * LED_SUBSTRIP_LEN)
+#define _LOOP_CNT_MS(x)     (x/_LED_TIMEOUT)
+
+/*******************************************************************************
+ *  TYPES, ENUM, DEFINITIONS 
+ ******************************************************************************/
 typedef struct {
     SubStrip::TeAnimation eAnimation;
     uint32_t u32Period;
@@ -23,6 +46,12 @@ typedef struct {
     SubStrip::TeDirection eDirection;
     CRGB* pPalette;
 } TstConfig;
+
+/*******************************************************************************
+ *  GLOBAL VARIABLES
+ ******************************************************************************/
+static CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
+static CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
 
 static CRGB ledStrip[_LED_NB];
 static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
@@ -43,6 +72,7 @@ static const TstConfig AnimationConfig[LED_SUBSTRIP_NB] = {
 };
 
 #if APP_TASKS
+SemaphoreHandle_t xLedStripSema;
 void vAppLedsTask(void *pvParam);
 #endif
 
@@ -61,7 +91,8 @@ void AppLED_init(void) {
     for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
         pObj->eSetOffset(pstConfig->u8Offset);
         if (pObj->eSetAnimation(pstConfig->eAnimation, pstConfig->pPalette, pstConfig->u32Period, pstConfig->u8Speed) < SubStrip::RET_OK) {
-            Serial.printf("[AppLED_init] SubStrip %u initialization failed\r\n", i);
+            // Serial.printf("[AppLED_init] SubStrip %u set animation failed\r\n", i);
+            APP_PRINT("[AppLED_init] SubStrip %u set animation failed\r\n");
         }
         pstConfig++;
         pObj++;
@@ -80,23 +111,55 @@ void vAppLedsTask(void *pvParam) {
     uint8_t u8Toggle = 0;
     uint8_t u8SubIndex = 0;
     TickType_t xLastWakeTime = xTaskGetTickCount();
+    xLedStripSema = xSemaphoreCreateBinary();
     uint32_t u32Now;
     uint16_t u16Cnt = 0;
     SubStrip *pObj;
+    char pcString[PRINT_UTILS_MAX_BUF] = {0};
     while (1) {
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(_LED_TIMEOUT));
-        u32Now = millis();
-        pObj = SubStrips;
-        for (u8SubIndex = 0; u8SubIndex < LED_SUBSTRIP_NB; u8SubIndex++) {
-            pObj->vManageAnimation(u32Now);
-            pObj++;
+        if (xLedStripSema)
+        {
+            if (xSemaphoreTake(xLedStripSema, pdMS_TO_TICKS(_LED_TIMEOUT/2))) {
+                // protected ressource
+                u32Now = millis();
+                pObj = SubStrips;
+                for (u8SubIndex = 0; u8SubIndex < LED_SUBSTRIP_NB; u8SubIndex++) {
+                    pObj->vManageAnimation(u32Now);
+                    pObj++;
+                }
+                FastLED.show();
+                if (xSemaphoreGive(xLedStripSema) != pdTRUE) {
+                    // Serial.println("[vAppLedsTask] xLedStripSema give error");
+                    APP_PRINT("[vAppLedsTask] xLedStripSema give error\r\n");
+                }
+            }
         }
-        FastLED.show();
+        
         if ((u16Cnt % _LOOP_CNT_MS(1000)) == 0) {
             u16Cnt = 0;
-            Serial.printf("[vAppLedsTask] Current tick: %u\r\n", millis());
+            snprintf(pcString, PRINT_UTILS_MAX_BUF, "[vAppLedsTask] Current tick: %u, xLedStripSema: %X\r\n", millis(), xLedStripSema);
+            APP_PRINT(pcString);
         }
         u16Cnt++;
+    }
+}
+
+void vAppLedsAnimTask(void *pvParam) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    SubStrip *pObj;
+    while (1) {
+        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(LED_CHANGE_DELAY));
+        if (xLedStripSema)
+        {
+            if( xSemaphoreTake(xLedStripSema, pdMS_TO_TICKS(1000)))
+            {
+                if (xSemaphoreGive(xLedStripSema) != pdTRUE) {
+                    // Serial.println("[vAppLedsAnimTask] xLedStripSema give error");
+                    APP_PRINT("[vAppLedsAnimTask] xLedStripSema give error");
+                }
+            }
+        }
     }
 }
 #else
@@ -105,26 +168,16 @@ void vAppLedsTask(void *pvParam) {
  * 
  ******************************************************************************/
 void AppLED_showLoop(void) {
+    SubStrip *pObj = SubStrips;
     static uint32_t u32Timeout = 0;
-    static uint32_t u32ColorFlipTimeout = 0;
-    static uint32_t u32ShiftedTimeout = 0;
     uint32_t u32RightNow = millis();
-    static uint8_t u8Toggle = 0;
     CRGB* Colors;
-
-    if (u32ColorFlipTimeout < u32RightNow) {
-        u32ColorFlipTimeout = u32RightNow + 2000;
-        u8Toggle ^= 1;
-        Colors = u8Toggle ? pMyColorPalette1 : pMyColorPalette2;
-         for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
-            SubStrips[i].vSetColorPalette(Colors);
-        }
-    }
 
     if (u32Timeout < u32RightNow) {
         u32Timeout = u32RightNow + _LED_TIMEOUT;
         for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
-            SubStrips[i].vManageAnimation(u32RightNow);
+            pObj->vManageAnimation(u32RightNow);
+            pObj++;
         }
         FastLED.show();
     }
