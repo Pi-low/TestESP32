@@ -9,7 +9,6 @@
 
 #define SUBSTRIP_STOP_PERIODIC     (uint32_t)(-1)
 #define SUBSTRIP_SECURE_LOOOP      30
-#define SUBSTRIP_FPS               50
 #define _SUBSTRIP_PERIOD           (1000/SUBSTRIP_FPS)
 
 // #ifndef _TRACE_DBG

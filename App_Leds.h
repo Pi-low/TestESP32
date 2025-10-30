@@ -17,7 +17,6 @@
 
 #define LED_SUBSTRIP_LEN    20
 #define LED_SUBSTRIP_NB     5
-#define LED_REFRESH         SUBSTRIP_FPS // use constant from SubStrip
 
 void AppLED_init(void);
 void AppLED_showLoop(void);

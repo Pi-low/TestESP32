@@ -23,13 +23,13 @@ static QueueHandle_t serialPrintQ;
 
 void vAppPrintUtils_Task(void* pvArg);
 
-vAppPrintUtils_init(void) {
+void vAppPrintUtils_init(void) {
     serialPrintQ = xQueueCreate(_PRINTQ_SIZE, PRINT_UTILS_MAX_BUF * sizeof(char));
     if (serialPrintQ == NULL) {
         Serial.println("[App_PrintUtils] Cannot create queue !");
     }
     else {
-        xTaskCreate(PRINT_UTILS_TASK, PRINT_UTILS_HEAP, PRINT_UTILS_PARAM, PRINT_UTILS_PRIO, PRINT_UTILS_HANDLE);
+        xTaskCreate(vAppPrintUtils_Task, PRINT_UTILS_TASK, PRINT_UTILS_HEAP, PRINT_UTILS_PARAM, PRINT_UTILS_PRIO, PRINT_UTILS_HANDLE);
     }
 }
 
@@ -44,7 +44,7 @@ void vAppPrintUtils_Print(const char* pcDataToPrint, BaseType_t xLength) {
     }
 }
 
-vAppPrintUtils_Task(void* pvArg) {
+void vAppPrintUtils_Task(void* pvArg) {
     char pcBuffer[PRINT_UTILS_MAX_BUF];
     TickType_t xLastWakeTime = xTaskGetTickCount();
     while (1) {

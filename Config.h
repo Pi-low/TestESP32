@@ -9,6 +9,7 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
+#include <Arduino.h>
 #include "Typedefs.h"
 
 /*******************************************************************************
@@ -31,7 +32,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-#define APP_PRINT(x)     vAppPrintUtils_Print(x, strlen(x))
+#define APP_TRACE(x)     vAppPrintUtils_Print(x, strlen(x))
 #endif
 
 #endif // _CONFIG_H

@@ -7,6 +7,7 @@
  */
 
 #include "Config.h"
+#include "App_PrintUtils.h"
 #include "App_Leds.h"
 #include "App_Wifi.h"
 

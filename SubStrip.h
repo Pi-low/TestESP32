@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define SUBSTRIP_FPS               50
+
 class SubStrip {
 public:
     typedef enum {
