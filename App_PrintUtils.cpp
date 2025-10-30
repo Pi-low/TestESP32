@@ -23,6 +23,10 @@ static QueueHandle_t serialPrintQ;
 
 void vAppPrintUtils_Task(void* pvArg);
 
+/*******************************************************************************
+ * @brief Initialize printing utils
+ * 
+ ******************************************************************************/
 void vAppPrintUtils_init(void) {
     serialPrintQ = xQueueCreate(_PRINTQ_SIZE, PRINT_UTILS_MAX_BUF * sizeof(char));
     if (serialPrintQ == NULL) {
@@ -33,6 +37,10 @@ void vAppPrintUtils_init(void) {
     }
 }
 
+/*******************************************************************************
+ * @brief Print data to serial
+ * 
+ ******************************************************************************/
 void vAppPrintUtils_Print(const char* pcDataToPrint, BaseType_t xLength) {
     if (serialPrintQ != NULL) {
         char pcbuffer[128] = {0};
@@ -44,6 +52,10 @@ void vAppPrintUtils_Print(const char* pcDataToPrint, BaseType_t xLength) {
     }
 }
 
+/*******************************************************************************
+ * @brief Print task
+ * 
+ ******************************************************************************/
 void vAppPrintUtils_Task(void* pvArg) {
     char pcBuffer[PRINT_UTILS_MAX_BUF];
     TickType_t xLastWakeTime = xTaskGetTickCount();
