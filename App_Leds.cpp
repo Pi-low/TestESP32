@@ -25,14 +25,14 @@
 #if APP_TASKS
 // APP_LEDS Task
 #define LED_TASK            "APP_LEDS"
-#define LED_TASK_HEAP       4096
+#define LED_TASK_HEAP       (configMINIMAL_STACK_SIZE*2)
 #define LED_TASK_PARAM      NULL
 #define LED_TASK_PRIO       2
 #define LED_TASK_HANDLE     NULL
 
 // APP_ANIM Task
 #define ANIM_TASK           "APP_ANIM"
-#define ANIM_TASK_HEAP      2048
+#define ANIM_TASK_HEAP      (configMINIMAL_STACK_SIZE*2)
 #define ANIM_TASK_PARAM     NULL
 #define ANIM_TASK_PRIO      2
 #define ANIM_TASK_HANDLE    NULL
@@ -175,10 +175,8 @@ void vAppLedsAnimTask(void *pvParam) {
     char tcDbgString[PRINT_UTILS_MAX_BUF] = {0};
     while (1) {
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(LED_CHANGE_DELAY));
-        if (xLedStripSema)
-        {
-            if( xSemaphoreTake(xLedStripSema, pdMS_TO_TICKS(1000)))
-            {
+        if (xLedStripSema) {
+            if( xSemaphoreTake(xLedStripSema, pdMS_TO_TICKS(1000))) {
                 // protected ressource >>>
 
                 snprintf(tcDbgString, PRINT_UTILS_MAX_BUF, "[APP_ANIM] [%u] Changing animations\r\n", millis());

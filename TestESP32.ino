@@ -17,7 +17,7 @@
 /* CONFIGURATION                                                              */
 /******************************************************************************/
 #define MAIN_TASK           "APP_MAIN"
-#define MAIN_TASK_HEAP      512 //configMINIMAL_STACK_SIZE
+#define MAIN_TASK_HEAP      configMINIMAL_STACK_SIZE
 #define MAIN_TASK_PARAM     NULL
 #define MAIN_TASK_PRIO      1
 #define MAIN_TASK_HANDLE    NULL
