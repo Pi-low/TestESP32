@@ -21,6 +21,10 @@
 void AppLED_init(void);
 void AppLED_showLoop(void);
 
+#if APP_TASKS
+extern SemaphoreHandle_t xLedStripSema;
+#endif
+
 #endif // APP_FASTLED
 
 #endif //_APP_LEDS_H

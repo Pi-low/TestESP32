@@ -11,18 +11,7 @@
 #define SUBSTRIP_SECURE_LOOOP      30
 #define _SUBSTRIP_PERIOD           (1000/SUBSTRIP_FPS)
 
-// #ifndef _TRACE_DBG
-// #define _TRACE_DBG(x, arg...)      Serial.printf(x, ##arg)
-// #endif
-
-#ifdef VERBOSE_DEBUG
-#define _MNG_RETURN(x)  do {\
-                            eRet = x;\
-                            Serial.printf(__FUNCTION__ ": %u", eRet);\ 
-                        } while (0)
-#else
 #define _MNG_RETURN(x)  eRet = x
-#endif
 
 /******************************************************************************/
 /* Public methods                                                             */
