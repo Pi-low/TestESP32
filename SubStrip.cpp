@@ -54,6 +54,7 @@ SubStrip::SubStrip(uint8_t u8NbLeds, CRGB *pLeds) {
 
     /* Init animation parameters */
     _u8Index = 0;
+    _u8Bpm = 30;
     _u8DelayRate = 0;
     _pPixel = NULL;
     _u8Offset = 0;
@@ -113,6 +114,10 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
         case CHECKERED:
             // Call checkered animation function
             vAnimateCheckered();
+            break;
+
+        case WAVE:
+            vAnimateWave();
             break;
 
         default:
@@ -281,6 +286,21 @@ SubStrip::TeRetVal SubStrip::eSetOffset(uint8_t u8Offset) {
 }
 
 /*******************************************************************************
+ * @brief Set BPM rate
+ * @param u8Bpm BPM rate
+ ******************************************************************************/
+SubStrip::TeRetVal SubStrip::eSetBpm(uint8_t u8Bpm) {
+    TeRetVal eRet = RET_OK;
+    if (!u8Bpm) {
+        _MNG_RETURN(RET_BAD_PARAMETER);
+    }
+    else {
+        _u8Bpm = u8Bpm;
+    }
+    return eRet;
+}
+
+/*******************************************************************************
  * @brief Clear the sub-strip by setting all LEDs to black.
  ******************************************************************************/
 void SubStrip::vClear(void) {
@@ -430,6 +450,19 @@ void SubStrip::vAnimateCheckered() {
         { vShiftBwd(NULL); }
     }
     _u8DelayRate++;
+}
+
+/*******************************************************************************
+ * @brief Manage wave animation
+ ******************************************************************************/
+void SubStrip::vAnimateWave(void) {
+    if (_ColorPalette && (_u8ColorNb >= 2)) {
+        uint8_t u8Pos = beatsin8(_u8Bpm, 0, _u8NbLeds-6, 0, _u8Offset);
+        vClear();
+        fill_solid(_SubLeds, u8Pos, _ColorPalette[0]);
+        fill_solid(_SubLeds + u8Pos, _u8NbLeds - u8Pos, _ColorPalette[1]);
+        fill_gradient_RGB(_SubLeds + u8Pos, 6, _ColorPalette[0], _ColorPalette[1]);
+    }
 }
 
 /*******************************************************************************
