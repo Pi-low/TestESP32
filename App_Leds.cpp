@@ -51,6 +51,7 @@ typedef struct {
     uint32_t u32Period;
     uint8_t u8Offset;
     uint8_t u8Speed;
+    uint16_t u16MsFade;
     SubStrip::TeDirection eDirection;
     CRGB* pPalette;
 } TstConfig;
@@ -63,20 +64,20 @@ static CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
 
 static CRGB ledStrip[_LED_NB];
 static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
-    SubStrip(20, ledStrip + _LED_SUB_OFFSET(0)),
-    SubStrip(20, ledStrip + _LED_SUB_OFFSET(1)),
-    SubStrip(20, ledStrip + _LED_SUB_OFFSET(2)),
-    SubStrip(20, ledStrip + _LED_SUB_OFFSET(3)),
-    SubStrip(20, ledStrip + _LED_SUB_OFFSET(4)),
+    SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(0)),
+    SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(1)),
+    SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(2)),
+    SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(3)),
+    SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(4)),
 };
 
 static const TstConfig AnimationConfig[LED_SUBSTRIP_NB] = {
-//   Animation            Period    Offset  Speed   Direction                   Palette
-    {SubStrip::CHECKERED, 2000,     0,      3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
-    {SubStrip::CHECKERED, 2000,     5,      3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
-    {SubStrip::CHECKERED, 2000,     10,     3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
-    {SubStrip::CHECKERED, 2000,     15,     3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
-    {SubStrip::CHECKERED, 2000,     20,     3,      SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+//   Animation            Period   Offset  Speed   MsFade  Direction                   Palette
+    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
 };
 
 #if APP_TASKS
@@ -100,6 +101,8 @@ void AppLED_init(void) {
     char tcDbgString[PRINT_UTILS_MAX_BUF] = {0};
     for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
         pObj->eSetOffset(pstConfig->u8Offset);
+        pObj->eSetDirection(pstConfig->eDirection);
+        pObj->eSetFadeRate(pstConfig->u16MsFade);
         if (pObj->eSetAnimation(pstConfig->eAnimation, pstConfig->pPalette, pstConfig->u32Period, pstConfig->u8Speed) < SubStrip::RET_OK) {
             snprintf(tcDbgString, PRINT_UTILS_MAX_BUF, "[AppLED_init] SubStrip %u set animation failed\r\n", i);
             APP_TRACE(tcDbgString);
