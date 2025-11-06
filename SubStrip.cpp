@@ -402,7 +402,7 @@ void SubStrip::vAnimateRaindrops() {
     if (_ColorPalette == NULL)
     { return; }
     
-    if ((_u8DelayRate % _u8Speed) == 0)
+    // if ((_u8DelayRate % _u8Speed) == 0)
     { fadeToBlackBy(_SubLeds, _u8NbLeds, _u8FadeRate); }
 
     if (_bTrigger && ((_u8Index >= _u8NbLeds) || !_u8Index)) {
