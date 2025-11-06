@@ -21,6 +21,15 @@
 void AppLED_init(void);
 void AppLED_showLoop(void);
 
+#if APP_TASKS
+extern SemaphoreHandle_t    xLedStripSema;
+#define LOCK_LEDS()         xSemaphoreTake(xLedStripSema, portMAX_DELAY)
+#define UNLOCK_LEDS()       xSemaphoreGive(xLedStripSema)
+#endif
+
+bool bAppLed_blackout(void);
+bool bAppLed_resume(void);
+
 #endif // APP_FASTLED
 
 #endif //_APP_LEDS_H

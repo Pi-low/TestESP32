@@ -31,6 +31,7 @@ public:
         RAINDROPS,
         FIRE,
         CHECKERED,
+        WAVE,
         NB_ANIMS
     } TeAnimation;
 
@@ -54,6 +55,7 @@ public:
     TeRetVal eSetFadeRate(uint16_t u16FadeDelay);
     TeRetVal eSetDirection(TeDirection eDirection);
     TeRetVal eSetOffset(uint8_t u8Offset);
+    TeRetVal eSetBpm(uint8_t u8Bpm);
     void vClear(void);
     void vFillColor(CRGB color);
     bool bIsBlack(void);
@@ -75,6 +77,7 @@ private:
     uint8_t _u8DelayRate;
     uint8_t _u8FadeRate;
     uint8_t _u8Offset;
+    uint8_t _u8Bpm;
     CRGB *_pPixel;
 
     bool _bTrigger;
@@ -88,6 +91,7 @@ private:
     void vAnimateRaindrops(void);
     void vAnimateFire(void);
     void vAnimateCheckered(void);
+    void vAnimateWave(void);
     TeRetVal eInitCheckered(void);
 };
 

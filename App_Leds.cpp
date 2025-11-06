@@ -63,6 +63,8 @@ static CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
 static CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
 
 static CRGB ledStrip[_LED_NB];
+static CRGB altStrip[_LED_NB] = {CRGB::Black};
+static CRGB *pCurrentStrip = NULL;
 static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
     SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(0)),
     SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(1)),
@@ -91,7 +93,8 @@ void vAppLedsAnimTask(void *pvParam);
  * 
  ******************************************************************************/
 void AppLED_init(void) {
-    FastLED.addLeds<LED_CHIPSET, LED_DATA_PIN, LED_PIXEL_ORDER>(ledStrip, _LED_NB);
+    pCurrentStrip = ledStrip;
+    FastLED.addLeds<LED_CHIPSET, LED_DATA_PIN, LED_PIXEL_ORDER>(pCurrentStrip, _LED_NB);
     FastLED.setBrightness(LED_BRIGHTNESS);
     FastLED.setCorrection(TypicalLEDStrip);
     FastLED.clear();
@@ -215,5 +218,25 @@ void AppLED_showLoop(void) {
     }
 }
 #endif
+
+bool bAppLed_blackout(void) {
+    bool bRetVal = false;
+    if (LOCK_LEDS()) {
+        pCurrentStrip = altStrip;
+        bRetVal = true;
+        UNLOCK_LEDS();
+    }
+    return bRetVal;
+}
+
+bool bAppLed_resume(void) {
+    bool bRetVal = false;
+    if (LOCK_LEDS()) {
+        pCurrentStrip = ledStrip;
+        bRetVal = true;
+        UNLOCK_LEDS();
+    }
+    return bRetVal;
+}
 
 #endif // APP_FASTLED

@@ -10,6 +10,7 @@
 #include "App_PrintUtils.h"
 #include "App_Leds.h"
 #include "App_Wifi.h"
+#include "App_Cli.h"
 
 #if APP_TASKS
 
@@ -30,6 +31,7 @@ void setup() {
 #if APP_PRINT
     Serial.begin(115200);
     vAppPrintUtils_init();
+    vAppCli_init();
 #endif
     pinMode(ESP_LED_PIN, OUTPUT);
 #if APP_FASTLED
