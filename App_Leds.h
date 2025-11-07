@@ -29,6 +29,7 @@ extern SemaphoreHandle_t    xLedStripSema;
 
 bool bAppLed_blackout(void);
 bool bAppLed_resume(void);
+bool bAppLed_setBrightness(uint8_t u8Brightness);
 
 #endif // APP_FASTLED
 

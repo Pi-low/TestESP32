@@ -22,50 +22,55 @@
 static void vAppCli_Task(void* pvArg);
 #endif
 
-#define ADD_KEYWORD(X) X
-#define GENERATE_CMD_ENUM(ENUM) ADD_KEYWORD(Cmd_)ENUM,
+#define GENERATE_CMD_ENUM(ENUM) Cmd_##ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
-#define GET_CMD_ENUM(CMD) ADD_KEYWORD(Cmd_)CMD
-#define GET_CMD_WORD(CMD) tpcCommands[GET_CMD_ENUM(CMD)]
-#define GET_CMD_OBJ(CMD) xCommands[GET_CMD_ENUM(CMD)]
+#define GET_CMD_ENUM(CMD) Cmd_##CMD
+#define GET_CMD_WORD(CMD) tpcCommands[Cmd_##CMD]
+#define GET_CMD_OBJ(CMD) xCommands[Cmd_##CMD]
+#define NB_COMMANDS 13
 
-#define FOREACH_CLI_CMD(PARAM)          \
-    PARAM(on)                           \
-    PARAM(off)                          \
-    PARAM(brightness)                   \
-    PARAM(whiteCorrect)                 \
-    PARAM(anim)                         \
-    PARAM(speed)                        \
-    PARAM(fade)                         \
-    PARAM(direction)                    \
-    PARAM(offset)                       \
-    PARAM(bpm)                          \
-    PARAM(palette)                      \
-    PARAM(addColor)                     \
+#define CLI_RX_BUFFER_SIZE  128
+#define CLI_TX_BUFFER_SIZE  128
+
+#define FOREACH_CLI_CMD(PARAM)  \
+    PARAM(on)                   \
+    PARAM(off)                  \
+    PARAM(brightness)           \
+    PARAM(whiteCorrect)         \
+    PARAM(anim)                 \
+    PARAM(speed)                \
+    PARAM(fade)                 \
+    PARAM(direction)            \
+    PARAM(offset)               \
+    PARAM(bpm)                  \
+    PARAM(palette)              \
+    PARAM(addColor)             \
     PARAM(color)
 
-#define NB_COMMANDS 13
+
 
 typedef enum {
     FOREACH_CLI_CMD(GENERATE_CMD_ENUM)
 } TeCliCmd;
 
-static const char *tpcCommands[Cmd_nb] = {
+static const char *tpcCommands[NB_COMMANDS] = {
     FOREACH_CLI_CMD(GENERATE_STRING)
 };
-
-#define CLI_RX_BUFFER_SIZE  128
-#define CLI_TX_BUFFER_SIZE  128
 
 SimpleCLI xCli;
 
 static Command xCommands[NB_COMMANDS];
 static char tcCLI_WriteBuffer[CLI_TX_BUFFER_SIZE];
 
+static void vCallback_off(cmd* xCommand);
+static void vCallback_on(cmd* xCommand);
+static void vCallback_brightness(cmd* xCommand);
+
 void vAppCli_init(void) {
-    GET_CMD_OBJ(on) = xCli.addCommand(GET_CMD_WORD(on), vCallback_on);
-    GET_CMD_OBJ(off) = xCli.addCommand(GET_CMD_WORD(off), vCallback_off);
+    GET_CMD_OBJ(on) = xCli.addBoundlessCommand("on", vCallback_on);
+    GET_CMD_OBJ(off) = xCli.addBoundlessCommand("off", vCallback_off);
+    GET_CMD_OBJ(brightness) = xCli.addBoundlessCommand("brightness", vCallback_brightness);
     xTaskCreate(vAppCli_Task, CLI_TASK, CLI_TASK_HEAP, CLI_TASK_PARAM, CLI_TASK_PRIO, CLI_TASK_HANDLE);
 }
 
@@ -83,7 +88,7 @@ static void vAppCli_Task(void* pvArg) {
 }
 #endif
 
-void vCallback_off(cmd* xCommand) {
+static void vCallback_off(cmd* xCommand) {
     Command cmd(xCommand);
     String cmdName = cmd.getName();
     if (bAppLed_blackout()) {
@@ -96,7 +101,7 @@ void vCallback_off(cmd* xCommand) {
     }
 }
 
-void vCallback_on(cmd* xCommand) {
+static void vCallback_on(cmd* xCommand) {
     Command cmd(xCommand);
     String cmdName = cmd.getName();
     if (bAppLed_resume()) {
@@ -109,4 +114,17 @@ void vCallback_on(cmd* xCommand) {
     }
 }
 
-void 
+static void vCallback_brightness(cmd* xCommand) {
+    Command cmd(xCommand);
+    Argument Arg = cmd.getArgument(0);
+    String strArg = Arg.getValue();
+    uint8_t u8Brightness = strArg.toInt();
+    if (bAppLed_setBrightness(u8Brightness)) {
+        snprintf(tcCLI_WriteBuffer, CLI_TX_BUFFER_SIZE, "[Cli] %s: %u\r\n", cmd.getName().c_str(), u8Brightness);
+        APP_TRACE(tcCLI_WriteBuffer);
+    }
+    else {
+        snprintf(tcCLI_WriteBuffer, CLI_TX_BUFFER_SIZE, "[Cli] %s: Error !\r\n", cmd.getName().c_str());
+        APP_TRACE(tcCLI_WriteBuffer);
+    }
+}
