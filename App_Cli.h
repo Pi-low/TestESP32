@@ -13,7 +13,7 @@
 #include <SimpleCLI.h>
 #include "Config.h"
 
-void vApp_Cli_init(void);
+void vAppCli_init(void);
 
 
 #endif // _APP_CLI_H_

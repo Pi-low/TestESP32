@@ -27,8 +27,14 @@ extern SemaphoreHandle_t    xLedStripSema;
 #define UNLOCK_LEDS()       xSemaphoreGive(xLedStripSema)
 #endif
 
+extern const char *tpcAppLED_Animations[];
+
 bool bAppLed_blackout(void);
 bool bAppLed_resume(void);
+bool bAppLed_SetBrightness(uint8_t u8Value);
+bool bAppLed_SetSpeed(uint8_t u8Speed);
+bool bAppLed_SetPeriod(uint32_t u32Period);
+bool bAppLed_SetFade(uint16_t u16FadeMs);
 
 #endif // APP_FASTLED
 
