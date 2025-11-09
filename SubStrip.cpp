@@ -220,7 +220,7 @@ SubStrip::TeRetVal SubStrip::eSetSpeed(uint8_t u8Speed) {
  * @param u32Period SUBSTRIP_STOP_PERIODIC will stop periodic triggering
  ******************************************************************************/
 SubStrip::TeRetVal SubStrip::eSetPeriod(uint32_t u32Period) {
-    _u32Period = u32Period ? u32Period : 100;
+    _u32Period = u32Period ? u32Period : SUBSTRIP_STOP_PERIODIC;
     return RET_OK;
 }
 

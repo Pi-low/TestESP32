@@ -63,7 +63,6 @@ static CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
 static CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
 
 static CRGB ledStrip[_LED_NB];
-static CRGB *pCurrentStrip = NULL;
 static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
     SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(0)),
     SubStrip(LED_SUBSTRIP_LEN, ledStrip + _LED_SUB_OFFSET(1)),
@@ -81,7 +80,16 @@ static const TstConfig AnimationConfig[LED_SUBSTRIP_NB] = {
     {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
 };
 
-bool bAppLed_displayOn = false;
+static bool bAppLed_displayOn = false;
+
+const char *tpcAppLED_Animations[SubStrip::NB_ANIMS] = {
+    "none",
+    "glitter",
+    "raindrops",
+    "fire",
+    "checkered",
+    "wave"
+}
 
 #if APP_TASKS
 SemaphoreHandle_t xLedStripSema;
@@ -137,32 +145,23 @@ void vAppLedsTask(void *pvParam) {
     uint8_t u8SubIndex = 0;
     TickType_t xLastWakeTime = xTaskGetTickCount();
     uint32_t u32Now;
-    uint16_t u16Cnt = 0;
+    // uint16_t u16Cnt = 0;
     SubStrip *pObj;
     while (1) {
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(_LED_TIMEOUT));
-        if (xLedStripSema)
-        {
-            if (xSemaphoreTake(xLedStripSema, pdMS_TO_TICKS(_LED_TIMEOUT/2))) {
-                // protected ressource >>>
-
-                u32Now = millis();
-                pObj = SubStrips;
-                for (u8SubIndex = 0; u8SubIndex < LED_SUBSTRIP_NB; u8SubIndex++) {
-                    pObj->vManageAnimation(u32Now);
-                    pObj++;
-                }
-                if (!bAppLed_displayOn) {
-                    FastLED.clear();
-                }
-                FastLED.show();
-
-                // <<< end of protected ressource
-                if (xSemaphoreGive(xLedStripSema) != pdTRUE) {
-                    // Serial.println("[vAppLedsTask] xLedStripSema give error");
-                    APP_TRACE("[APP_LEDS] xLedStripSema give error\r\n");
-                }
+        if (LOCK_LEDS()) {
+            // protected ressource >>>
+            u32Now = millis();
+            pObj = SubStrips;
+            for (u8SubIndex = 0; u8SubIndex < LED_SUBSTRIP_NB; u8SubIndex++) {
+                pObj->vManageAnimation(u32Now);
+                pObj++;
             }
+            if (!bAppLed_displayOn)
+            { FastLED.clear(); }
+            FastLED.show();
+            // <<< end of protected ressource
+            UNLOCK_LEDS();
         }
         
         // if ((u16Cnt % _LOOP_CNT_MS(1000)) == 0) {
@@ -184,19 +183,13 @@ void vAppLedsAnimTask(void *pvParam) {
     char tcDbgString[PRINT_UTILS_MAX_BUF] = {0};
     while (1) {
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(LED_CHANGE_DELAY));
-        if (xLedStripSema) {
-            if( xSemaphoreTake(xLedStripSema, pdMS_TO_TICKS(1000))) {
-                // protected ressource >>>
 
-                snprintf(tcDbgString, PRINT_UTILS_MAX_BUF, "[APP_ANIM] [%u] Changing animations\r\n", millis());
-                APP_TRACE(tcDbgString);
-
-                // <<< end of protected ressource
-                if (xSemaphoreGive(xLedStripSema) != pdTRUE) {
-                    // Serial.println("[vAppLedsAnimTask] xLedStripSema give error");
-                    APP_TRACE("[APP_ANIM] xLedStripSema give error");
-                }
-            }
+        if(LOCK_LEDS()) {
+            // protected ressource >>>
+            snprintf(tcDbgString, PRINT_UTILS_MAX_BUF, "[APP_ANIM] [%u] Animation event\r\n", millis());
+            APP_TRACE(tcDbgString);
+            // <<< end of protected ressource
+            UNLOCK_LEDS();
         }
     }
 }
@@ -232,9 +225,51 @@ bool bAppLed_resume(void) {
     return true;
 }
 
-bool bAppLed_setBrightness(uint8_t u8Brightness) {
-    FastLED.setBrightness(u8Brightness);
+bool bAppLed_SetBrightness(uint8_t u8Value) {
+    FastLED.setBrightness(u8Value);
     return true;
+}
+
+bool bAppLed_SetSpeed(uint8_t u8Speed) {
+    bool bRet = false;
+    if (LOCK_LEDS()) {
+        SubStrip *pObj = SubStrips;
+        for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
+            pObj->eSetSpeed(u8Speed);
+            pObj++;
+        }
+        bRet = true;
+        UNLOCK_LEDS();
+    }
+    return bRet;
+}
+
+bool bAppLed_SetPeriod(uint32_t u32Period) {
+    bool bRet = false;
+    if (LOCK_LEDS()) {
+        SubStrip *pObj = SubStrips;
+        for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
+            pObj->eSetPeriod(u32Period);
+            pObj++;
+        }
+        bRet = true;
+        UNLOCK_LEDS();
+    }
+    return bRet;
+}
+
+bool bAppLed_SetFade(uint16_t u16FadeMs) {
+    bool bRet = false;
+    if (LOCK_LEDS()) {
+        SubStrip *pObj = SubStrips;
+        for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
+            pObj->eSetFadeRate(u16FadeMs);
+            pObj++;
+        }
+        bRet = true;
+        UNLOCK_LEDS();
+    }
+    return bRet;
 }
 
 #endif // APP_FASTLED
