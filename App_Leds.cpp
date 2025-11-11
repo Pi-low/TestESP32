@@ -8,10 +8,9 @@
 
 #include "App_Leds.h"
 #include "App_PrintUtils.h"
+#include <list>
 
 #if defined(APP_FASTLED) && APP_FASTLED
-
-#include "SubStrip.h"
 
 /*******************************************************************************
  *  CONFIGURATION
@@ -21,6 +20,7 @@
 #define LED_PIXEL_ORDER     GRB
 #define LED_BRIGHTNESS      127
 #define LED_CHANGE_DELAY    5000
+#define LED_STATIC_PALETTE_NB  6
 
 #if APP_TASKS
 // APP_LEDS Task
@@ -60,7 +60,7 @@ typedef struct {
  *  GLOBAL VARIABLES
  ******************************************************************************/
 static CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
-static CRGB pMyColorPalette2[3] = {CRGB::Orange, CRGB::Fuchsia, CRGB::Black};
+static CRGB tCustomPalettes[LED_SUBSTRIP_NB][LED_STATIC_PALETTE_NB + 1] = {{{CRGB::Black}}};
 
 static CRGB ledStrip[_LED_NB];
 static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
@@ -72,12 +72,12 @@ static SubStrip SubStrips[LED_SUBSTRIP_NB] = {
 };
 
 static const TstConfig AnimationConfig[LED_SUBSTRIP_NB] = {
-//   Animation            Period   Offset  Speed   MsFade  Direction                   Palette
-    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
-    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
-    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
-    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
-    {SubStrip::RAINDROPS, 800,     0,      2,      75,     SubStrip::FORWARD_INOUT,    pMyColorPalette2},
+//   Animation              Period   Offset  Speed   MsFade  Direction                   Palette
+    {SubStrip::RAINDROPS,   2000,    0,      2,      100,    SubStrip::FORWARD_INOUT,    pMyColorPalette1},
+    {SubStrip::RAINDROPS,   2000,    0,      2,      100,    SubStrip::FORWARD_INOUT,    pMyColorPalette1},
+    {SubStrip::RAINDROPS,   2000,    0,      2,      100,    SubStrip::FORWARD_INOUT,    pMyColorPalette1},
+    {SubStrip::RAINDROPS,   2000,    0,      2,      100,    SubStrip::FORWARD_INOUT,    pMyColorPalette1},
+    {SubStrip::RAINDROPS,   2000,    0,      2,      100,    SubStrip::FORWARD_INOUT,    pMyColorPalette1},
 };
 
 static bool bAppLed_displayOn = false;
@@ -86,10 +86,9 @@ const char *tpcAppLED_Animations[SubStrip::NB_ANIMS] = {
     "none",
     "glitter",
     "raindrops",
-    "fire",
     "checkered",
     "wave"
-}
+};
 
 #if APP_TASKS
 SemaphoreHandle_t xLedStripSema;
@@ -129,7 +128,6 @@ void AppLED_init(void) {
     else {
         xSemaphoreGive(xLedStripSema);
         xTaskCreate(vAppLedsTask, LED_TASK, LED_TASK_HEAP, LED_TASK_PARAM, LED_TASK_PRIO, LED_TASK_HANDLE);
-        // xTaskCreate(vAppLedsAnimTask, ANIM_TASK, ANIM_TASK_HEAP, ANIM_TASK_PARAM, ANIM_TASK_PRIO, ANIM_TASK_HANDLE);
     }
 #endif
 }
@@ -163,13 +161,6 @@ void vAppLedsTask(void *pvParam) {
             // <<< end of protected ressource
             UNLOCK_LEDS();
         }
-        
-        // if ((u16Cnt % _LOOP_CNT_MS(1000)) == 0) {
-        //     u16Cnt = 0;
-        //     snprintf(tcDbgString, PRINT_UTILS_MAX_BUF, "[APP_LEDS] [%u] Task alive\r\n", millis(), xLedStripSema);
-        //     APP_TRACE(tcDbgString);
-        // }
-        // u16Cnt++;
     }
 }
 
@@ -215,61 +206,233 @@ void AppLED_showLoop(void) {
 }
 #endif
 
-bool bAppLed_blackout(void) {
+eApp_RetVal eAppLed_blackout(void) {
     bAppLed_displayOn = false;
-    return true;
+    return eRet_Ok;
 }
 
-bool bAppLed_resume(void) {
+eApp_RetVal eAppLed_resume(void) {
     bAppLed_displayOn = true;
-    return true;
+    return eRet_Ok;
 }
 
-bool bAppLed_SetBrightness(uint8_t u8Value) {
+eApp_RetVal eAppLed_SetBrightness(uint8_t u8Value) {
     FastLED.setBrightness(u8Value);
-    return true;
+    return eRet_Ok;
 }
 
-bool bAppLed_SetSpeed(uint8_t u8Speed) {
-    bool bRet = false;
-    if (LOCK_LEDS()) {
-        SubStrip *pObj = SubStrips;
-        for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
-            pObj->eSetSpeed(u8Speed);
-            pObj++;
+eApp_RetVal eAppLed_SetAnimation(SubStrip::TeAnimation eAnimation, uint8_t u8Index) {
+    eApp_RetVal eRet = eRet_Ok;
+    if (eAnimation >= SubStrip::NB_ANIMS) {
+        eRet = eRet_BadParameter;
+    }
+    else if (LOCK_LEDS()) {
+        SubStrip *pObj = NULL;
+        if (u8Index != _LED_ALLSTRIPS) {
+            pObj = &SubStrips[u8Index];
+            eRet = (pObj->eSetAnimation(eAnimation) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
         }
-        bRet = true;
+        else {
+            pObj = SubStrips;
+            for (uint8_t i = 0; (i < LED_SUBSTRIP_NB) && (eRet >= eRet_Ok); i++) {
+                eRet = (pObj->eSetAnimation(eAnimation) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+                pObj++;
+            }
+        }
         UNLOCK_LEDS();
     }
-    return bRet;
+    return eRet;
 }
 
-bool bAppLed_SetPeriod(uint32_t u32Period) {
-    bool bRet = false;
-    if (LOCK_LEDS()) {
-        SubStrip *pObj = SubStrips;
-        for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
-            pObj->eSetPeriod(u32Period);
-            pObj++;
+eApp_RetVal eAppLed_SetSpeed(uint8_t u8Speed, uint8_t u8Index) {
+    eApp_RetVal eRet = eRet_Ok;
+    if ((u8Index >= LED_SUBSTRIP_NB) && (u8Index != _LED_ALLSTRIPS)) {
+        eRet = eRet_BadParameter;
+    }
+    else if (LOCK_LEDS()) {
+        SubStrip *pObj = NULL;
+        if (u8Index != _LED_ALLSTRIPS) {
+            pObj = &SubStrips[u8Index];
+            eRet = (pObj->eSetSpeed(u8Speed) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
         }
-        bRet = true;
+        else {
+            pObj = SubStrips;
+            for (uint8_t i = 0; (i < LED_SUBSTRIP_NB) && (eRet >= eRet_Ok); i++) {
+                eRet = (pObj->eSetSpeed(u8Speed) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+                pObj++;
+            }
+        }
         UNLOCK_LEDS();
     }
-    return bRet;
+    return eRet;
 }
 
-bool bAppLed_SetFade(uint16_t u16FadeMs) {
-    bool bRet = false;
-    if (LOCK_LEDS()) {
-        SubStrip *pObj = SubStrips;
-        for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
-            pObj->eSetFadeRate(u16FadeMs);
-            pObj++;
+eApp_RetVal eAppLed_SetPeriod(uint32_t u32Period, uint8_t u8Index) {
+    eApp_RetVal eRet = eRet_Ok;
+    if ((u8Index >= LED_SUBSTRIP_NB) && (u8Index != _LED_ALLSTRIPS)) {
+        eRet = eRet_BadParameter;
+    }
+    else if (LOCK_LEDS()) {
+        SubStrip *pObj = NULL;
+        if (u8Index != _LED_ALLSTRIPS) {
+            pObj = &SubStrips[u8Index];
+            eRet = (pObj->eSetPeriod(u32Period) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
         }
-        bRet = true;
+        else {
+            pObj = SubStrips;
+            for (uint8_t i = 0; (i < LED_SUBSTRIP_NB) && (eRet >= eRet_Ok); i++) {
+                eRet = (pObj->eSetPeriod(u32Period) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+                pObj++;
+            }
+        }
         UNLOCK_LEDS();
     }
-    return bRet;
+    return eRet;
+}
+
+eApp_RetVal eAppLed_SetFade(uint16_t u16FadeMs, uint8_t u8Index) {
+    eApp_RetVal eRet = eRet_Ok;
+    if ((u8Index >= LED_SUBSTRIP_NB) && (u8Index != _LED_ALLSTRIPS)) {
+        eRet = eRet_BadParameter;
+    }
+    else if (LOCK_LEDS()) {
+        SubStrip *pObj = NULL;
+        if (u8Index != _LED_ALLSTRIPS) {
+            pObj = &SubStrips[u8Index];
+            eRet = (pObj->eSetFadeRate(u16FadeMs) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+        }
+        else {
+            pObj = SubStrips;
+            for (uint8_t i = 0; (i < LED_SUBSTRIP_NB) && (eRet >= eRet_Ok); i++) {
+                eRet = (pObj->eSetFadeRate(u16FadeMs) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+                pObj++;
+            }
+        }
+        UNLOCK_LEDS();
+    }
+    return eRet;
+}
+
+eApp_RetVal eAppLed_SetDirection(SubStrip::TeDirection eDirection, uint8_t u8Index) {
+    eApp_RetVal eRet = eRet_Ok;
+    if ((u8Index >= LED_SUBSTRIP_NB) && (u8Index != _LED_ALLSTRIPS)) {
+        eRet = eRet_BadParameter;
+    }
+    else if (LOCK_LEDS()) {
+        SubStrip *pObj = NULL;
+        if (u8Index != _LED_ALLSTRIPS) {
+            pObj = &SubStrips[u8Index];
+            eRet = (pObj->eSetDirection(eDirection) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+        }
+        else {
+            pObj = SubStrips;
+            for (uint8_t i = 0; (i < LED_SUBSTRIP_NB) && (eRet >= eRet_Ok); i++) {
+                eRet = (pObj->eSetDirection(eDirection) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+                pObj++;
+            }
+        }
+        UNLOCK_LEDS();
+    }
+    return eRet;
+}
+
+eApp_RetVal eAppLed_SetOffset(uint8_t u8Offset, uint8_t u8Index) {
+    eApp_RetVal eRet = eRet_Ok;
+    if ((u8Index >= LED_SUBSTRIP_NB) && (u8Index != _LED_ALLSTRIPS)) {
+        eRet = eRet_BadParameter;
+    }
+    else if (LOCK_LEDS()) {
+        SubStrip *pObj = NULL;
+        if (u8Index != _LED_ALLSTRIPS) {
+            pObj = &SubStrips[u8Index];
+            eRet = (pObj->eSetOffset(u8Offset) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+        }
+        else {
+            pObj = SubStrips;
+            for (uint8_t i = 0; (i < LED_SUBSTRIP_NB) && (eRet >= eRet_Ok); i++) {
+                eRet = (pObj->eSetOffset(u8Offset) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+                pObj++;
+            }
+        }
+        UNLOCK_LEDS();
+    }
+    return eRet;
+}
+
+eApp_RetVal eAppLed_SetBpm(uint8_t u8Bpm, uint8_t u8Index) {
+    eApp_RetVal eRet = eRet_Ok;
+    if ((u8Index >= LED_SUBSTRIP_NB) && (u8Index != _LED_ALLSTRIPS)) {
+        eRet = eRet_BadParameter;
+    }
+    else if (LOCK_LEDS()) {
+        SubStrip *pObj = NULL;
+        if (u8Index != _LED_ALLSTRIPS) {
+            pObj = &SubStrips[u8Index];
+            eRet = (pObj->eSetBpm(u8Bpm) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+        }
+        else {
+            pObj = SubStrips;
+            for (uint8_t i = 0; (i < LED_SUBSTRIP_NB) && (eRet >= eRet_Ok); i++) {
+                eRet = (pObj->eSetBpm(u8Bpm) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+                pObj++;
+            }
+        }
+        UNLOCK_LEDS();
+    }
+    return eRet;
+}
+
+eApp_RetVal eAppLed_SetPalette(uint8_t u8PaletteIndex, uint8_t u8SubStripIndex) {
+    eApp_RetVal eRet = eRet_Ok;
+    if (((u8SubStripIndex >= LED_SUBSTRIP_NB) && (u8SubStripIndex != _LED_ALLSTRIPS)) || (u8PaletteIndex >= LED_SUBSTRIP_NB))
+    { eRet = eRet_BadParameter; }
+    else {
+        CRGB *pPalette = &tCustomPalettes[u8PaletteIndex][0];
+        SubStrip *pObj = NULL;
+
+        if (LOCK_LEDS()) {
+            if (u8SubStripIndex != _LED_ALLSTRIPS) {
+                pObj = &SubStrips[u8SubStripIndex];
+                eRet = (pObj->eSetColorPalette(pPalette) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+            }
+            else {
+                pObj = SubStrips;
+                for (uint8_t i = 0; (i < LED_SUBSTRIP_NB) && (eRet >= eRet_Ok); i++) {
+                    eRet = (pObj->eSetColorPalette(pPalette) < SubStrip::RET_OK) ? eRet_InternalError : eRet_Ok;
+                    pObj++;
+                }
+            }
+            UNLOCK_LEDS();
+        }
+    }
+    return eRet;
+}
+
+eApp_RetVal eAppLed_LoadColorAt(CRGB xColor, uint8_t u8PaletteIndex, uint8_t u8Index) {
+    eApp_RetVal eRet = eRet_Ok;
+    if ((u8Index >= LED_STATIC_PALETTE_NB) || (u8PaletteIndex >= LED_SUBSTRIP_NB) || (xColor == CRGB::Black))
+    { eRet = eRet_BadParameter; }
+    else {
+        if (LOCK_LEDS()) {
+            tCustomPalettes[u8PaletteIndex][u8Index] = xColor;
+            UNLOCK_LEDS();
+        }
+    }
+    return eRet;
+}
+
+eApp_RetVal eAppLed_LoadColors(CRGB *xColor, uint8_t u8NbColors, uint8_t u8PaletteIndex) {
+    eApp_RetVal eRet = eRet_Ok;
+    if ((u8NbColors > LED_STATIC_PALETTE_NB) || (u8NbColors == 0) || (u8PaletteIndex >= LED_SUBSTRIP_NB))
+    { eRet = eRet_BadParameter; }
+    else {
+        if (LOCK_LEDS()) {
+            memset(tCustomPalettes[u8PaletteIndex], 0, sizeof(CRGB) * (LED_STATIC_PALETTE_NB + 1));
+            memcpy(tCustomPalettes[u8PaletteIndex], xColor, sizeof(CRGB) * u8NbColors);
+            UNLOCK_LEDS();
+        }
+    }
+    return eRet;
 }
 
 #endif // APP_FASTLED

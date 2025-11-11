@@ -27,7 +27,7 @@ static void vAppCli_Task(void* pvArg);
 
 #define GENERATE_CMD_ENUM(ENUM)         Cmd_##ENUM,
 #define CMD_OBJ(CMD)                    xCommands[Cmd_##CMD]
-#define CMD_CALLBACK(CMD)               xCommands[Cmd_##CMD] = xCli.addBoundlessCommand(#CMD, vCallback_##CMD)
+#define SET_CALLBACK(CMD)               xCommands[Cmd_##CMD] = xCli.addBoundlessCommand(#CMD, vCallback_##CMD)
 
 #define FOREACH_CLI_CMD(PARAM)          \
     PARAM(on)                           \
@@ -42,10 +42,9 @@ static void vAppCli_Task(void* pvArg);
     PARAM(offset)                       \
     PARAM(bpm)                          \
     PARAM(palette)                      \
-    PARAM(addColor)                     \
-    PARAM(color)
+    PARAM(addColor)
 
-#define NB_COMMANDS 14
+#define NB_COMMANDS 13
 
 typedef enum {
     FOREACH_CLI_CMD(GENERATE_CMD_ENUM)
@@ -59,24 +58,34 @@ static void vCallback_anim(cmd* xCommand);
 static void vCallback_speed(cmd* xCommand);
 static void vCallback_period(cmd* xCommand);
 static void vCallback_fade(cmd* xCommand);
+static void vCallback_direction(cmd* xCommand);
+static void vCallback_offset(cmd* xCommand);
+static void vCallback_bpm(cmd* xCommand);
+static void vCallback_palette(cmd* xCommand);
+static void vCallback_addColor(cmd* xCommand);
 
-static void vAppCli_SendResponse(const char* pcCommandName, bool bResult, const char* pcExtraString);
-static void vCallback_error(cmd* xCommand);
+static void vAppCli_SendResponse(const char* pcCommandName, eApp_RetVal eRetval, const char* pcExtraString);
+static char* pcReturnValueToString(eApp_RetVal eRet);
+static void vCallback_error(cmd_error* xError);
 
 static Command xCommands[NB_COMMANDS];
 static char tcCLI_WriteBuffer[CLI_TX_BUFFER_SIZE];
 
-static void vCallback_off(cmd* xCommand);
-static void vCallback_on(cmd* xCommand);
-static void vCallback_brightness(cmd* xCommand);
-
 void vAppCli_init(void) {
-    CMD_CALLBACK(on);
-    CMD_CALLBACK(off);
-    CMD_CALLBACK(brightness);
-    CMD_CALLBACK(speed);
-    CMD_CALLBACK(period);
-    CMD_CALLBACK(fade);
+    SET_CALLBACK(on);
+    SET_CALLBACK(off);
+    SET_CALLBACK(brightness);
+    SET_CALLBACK(anim);
+    SET_CALLBACK(speed);
+    SET_CALLBACK(period);
+    SET_CALLBACK(fade);
+    SET_CALLBACK(direction);
+    SET_CALLBACK(offset);
+    SET_CALLBACK(bpm);
+    SET_CALLBACK(palette);
+    SET_CALLBACK(addColor);
+    xCli.setErrorCallback(vCallback_error);
+
     xTaskCreate(vAppCli_Task, CLI_TASK, CLI_TASK_HEAP, CLI_TASK_PARAM, CLI_TASK_PRIO, CLI_TASK_HANDLE);
     APP_TRACE(">");
 }
@@ -90,6 +99,8 @@ static void vAppCli_Task(void* pvArg) {
         if (Serial.available()) {
             Serial.readBytesUntil('\n', tcRxBuffer, CLI_RX_BUFFER_SIZE-1);
             xCli.parse(tcRxBuffer);
+            while(Serial.available()) { Serial.read(); } //flush rest of buffer
+            memset(tcRxBuffer, 0, CLI_RX_BUFFER_SIZE);
         }
     }
 }
@@ -98,60 +109,256 @@ static void vAppCli_Task(void* pvArg) {
 static void vCallback_off(cmd* xCommand) {
     Command cmd(xCommand);
     String cmdName = cmd.getName();
-    vAppCli_SendResponse(cmdName.c_str(), bAppLed_blackout(), NULL);
+    vAppCli_SendResponse(cmdName.c_str(), eAppLed_blackout(), NULL);
 }
 
-void vCallback_on(cmd* xCommand) {
+static void vCallback_on(cmd* xCommand) {
     Command cmd(xCommand);
     String cmdName = cmd.getName();
-    vAppCli_SendResponse(cmdName.c_str(), bAppLed_resume(), NULL);
+    vAppCli_SendResponse(cmdName.c_str(), eAppLed_resume(), NULL);
 }
 
-void vCallback_brightness(cmd* xCommand) {
+static void vCallback_brightness(cmd* xCommand) {
     Command cmd(xCommand);
     Argument xArg = cmd.getArgument(0);
     String argStr = xArg.getValue();
     uint8_t u8Value = argStr.toInt();
-    vAppCli_SendResponse(cmd.getName().c_str(), bAppLed_SetBrightness(u8Value), argStr.c_str());
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetBrightness(u8Value), argStr.c_str());
 }
 
-void vCallback_anim(cmd* xCommand) {
+static void vCallback_anim(cmd* xCommand) {
     Command cmd(xCommand);
+    String StrExtra;
+    uint8_t u8Index;
+
+    //animation type
     Argument xArg = cmd.getArgument(0);
     String argStr = xArg.getValue();
-    vAppCli_SendResponse(cmd.getName().c_str(), bAppLed_SetBrightness(u8Value), argStr.c_str());
+    SubStrip::TeAnimation eAnim = SubStrip::NONE;
+    char **tpcKeyWord = (char**)tpcAppLED_Animations;
+    StrExtra += argStr + " ";
+
+    for (uint8_t  i = 0; i < SubStrip::NB_ANIMS; i++) {
+        if (argStr.equalsIgnoreCase(*tpcKeyWord)) {
+            eAnim = (SubStrip::TeAnimation)i;
+            break;
+        }
+        tpcKeyWord++;
+    }
+
+    // index
+    xArg = cmd.getArgument(1);
+    argStr = xArg.getValue();
+    if (argStr.isEmpty())
+    { argStr = "all"; }
+    StrExtra += argStr;
+    u8Index = (argStr.equalsIgnoreCase("all")) ? _LED_ALLSTRIPS : argStr.toInt();
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetAnimation(eAnim, u8Index), StrExtra.c_str());
 }
 
-void vCallback_speed(cmd* xCommand) {
+static void vCallback_speed(cmd* xCommand) {
     Command cmd(xCommand);
+    String StrExtra;
+
+    // Set value
     Argument xArg = cmd.getArgument(0);
     String argStr = xArg.getValue();
     uint8_t u8Value = argStr.toInt();
-    vAppCli_SendResponse(cmd.getName().c_str(), bAppLed_SetSpeed(u8Value), argStr.c_str());
+    StrExtra += argStr + " ";
+
+    // Index
+    xArg = cmd.getArgument(1);
+    argStr = xArg.getValue();
+    if (argStr.isEmpty())
+    { argStr = "all"; }
+    StrExtra += argStr;
+    uint8_t u8Index = (argStr.equalsIgnoreCase("all")) ? _LED_ALLSTRIPS : argStr.toInt();
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetSpeed(u8Value, u8Index), StrExtra.c_str());
 }
 
-void vCallback_period(cmd* xCommand) {
+static void vCallback_period(cmd* xCommand) {
     Command cmd(xCommand);
+    String StrExtra;
+
+    // Set value
     Argument xArg = cmd.getArgument(0);
     String argStr = xArg.getValue();
     uint32_t u32Value = argStr.toInt();
-    vAppCli_SendResponse(cmd.getName().c_str(), bAppLed_SetPeriod(u32Value), argStr.c_str());
+    StrExtra += argStr + " ";
+
+    // Index
+    xArg = cmd.getArgument(1);
+    argStr = xArg.getValue();
+    if (argStr.isEmpty())
+    { argStr = "all"; }
+    StrExtra += argStr;
+    uint8_t u8Index = (argStr.equalsIgnoreCase("all")) ? _LED_ALLSTRIPS : argStr.toInt();
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetPeriod(u32Value, u8Index), StrExtra.c_str());
 }
 
-void vCallback_fade(cmd* xCommand) {
+static void vCallback_fade(cmd* xCommand) {
     Command cmd(xCommand);
+    String StrExtra;
+
+    // Set value
+    Argument xArg = cmd.getArgument(0);
+    String argStr = xArg.getValue();
+    uint16_t u16Value = argStr.toInt();
+    StrExtra += argStr + " ";
+
+    // Index
+    xArg = cmd.getArgument(1);
+    argStr = xArg.getValue();
+    if (argStr.isEmpty())
+    { argStr = "all"; }
+    StrExtra += argStr;
+    uint8_t u8Index = (argStr.equalsIgnoreCase("all")) ? _LED_ALLSTRIPS : argStr.toInt();
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetFade(u16Value, u8Index), StrExtra.c_str());
+}
+
+static void vCallback_direction(cmd* xCommand) {
+    Command cmd(xCommand);
+    String StrExtra;
+
+    // Set value
+    Argument xArg = cmd.getArgument(0);
+    String argStr = xArg.getValue();
+    StrExtra += argStr + " ";
+    SubStrip::TeDirection eDirection = SubStrip::FORWARD_INOUT;
+    if (argStr.equalsIgnoreCase("fwd")) {
+        eDirection = SubStrip::FORWARD_INOUT;
+    } else if (argStr.equalsIgnoreCase("rvs")) {
+        eDirection = SubStrip::REVERSE_OUTIN;
+    }
+
+    // Index
+    xArg = cmd.getArgument(1);
+    argStr = xArg.getValue();
+    if (argStr.isEmpty())
+    { argStr = "all"; }
+    StrExtra += argStr;
+    uint8_t u8Index = (argStr.equalsIgnoreCase("all")) ? _LED_ALLSTRIPS : argStr.toInt();
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetDirection(eDirection, u8Index), StrExtra.c_str());
+}
+
+static void vCallback_offset(cmd* xCommand) {
+    Command cmd(xCommand);
+    String StrExtra;
+
+    // Set value
     Argument xArg = cmd.getArgument(0);
     String argStr = xArg.getValue();
     uint8_t u8Value = argStr.toInt();
-    vAppCli_SendResponse(cmd.getName().c_str(), bAppLed_SetFade(u8Value), argStr.c_str());
+    StrExtra += argStr + " ";
+
+    // Index
+    xArg = cmd.getArgument(1);
+    argStr = xArg.getValue();
+    if (argStr.isEmpty())
+    { argStr = "all"; }
+    StrExtra += argStr;
+    uint8_t u8Index = (argStr.equalsIgnoreCase("all")) ? _LED_ALLSTRIPS : argStr.toInt();
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetOffset(u8Value, u8Index), StrExtra.c_str());
 }
 
-void vAppCli_SendResponse(const char* pcCommandName, bool bResult, const char* pcExtraString) {
-    snprintf(tcCLI_WriteBuffer, CLI_TX_BUFFER_SIZE, "%s: %s %s\r\n>", pcCommandName, bResult ? "ok" : "errror", pcExtraString ? pcExtraString : "\0");
+static void vCallback_bpm(cmd* xCommand) {
+    Command cmd(xCommand);
+    String StrExtra;
+
+    // Set value
+    Argument xArg = cmd.getArgument(0);
+    String argStr = xArg.getValue();
+    uint8_t u8Value = argStr.toInt();
+    StrExtra += argStr + " ";
+
+    // Index
+    xArg = cmd.getArgument(1);
+    argStr = xArg.getValue();
+    if (argStr.isEmpty())
+    { argStr = "all"; }
+    StrExtra += argStr;
+    uint8_t u8Index = (argStr.equalsIgnoreCase("all")) ? _LED_ALLSTRIPS : argStr.toInt();
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetBpm(u8Value, u8Index), StrExtra.c_str());
+}
+
+static void vCallback_palette(cmd* xCommand) {
+    Command cmd(xCommand);
+    String StrExtra = "Substrip[";
+
+    // Strip index
+    Argument xArg = cmd.getArgument(0);
+    String argStr = xArg.getValue();
+    StrExtra += argStr + "] <= Palette[";
+    uint8_t u8StripIndex = (argStr.equalsIgnoreCase("all")) ? _LED_ALLSTRIPS : argStr.toInt();
+
+    // Palette index
+    xArg = cmd.getArgument(1);
+    argStr = xArg.getValue();
+    if (argStr.isEmpty())
+    { argStr = "0"; }
+    StrExtra += argStr + "]";
+    uint8_t u8PaletteIndex = argStr.toInt();
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetPalette(u8PaletteIndex, u8StripIndex), StrExtra.c_str());
+}
+
+static void vCallback_addColor(cmd* xCommand) {
+    uint8_t u8ColorCnt = 0;
+    uint8_t i;
+    CRGB tcTmpPalette[6];
+    Command cmd(xCommand);
+    String StrExtra = "Palette[";
+
+
+    // Palette index
+    Argument xArg = cmd.getArgument(0);
+    String argStr = xArg.getValue();
+    uint8_t u8PaletteIndex = argStr.toInt();
+    StrExtra += argStr + "] = ";
+
+    do {
+        xArg = cmd.getArgument(u8ColorCnt + 1);
+        argStr = xArg.getValue();
+        uint32_t u32Color = (uint32_t)strtol(argStr.c_str(), NULL, 16);
+        tcTmpPalette[u8ColorCnt] = CRGB((uint8_t)(u32Color >> 16), (uint8_t)(u32Color >> 8), (uint8_t)(u32Color));
+        StrExtra += String(u32Color, HEX) + " ";
+        u8ColorCnt++;
+    } while ((u8ColorCnt < 6) && !argStr.isEmpty());
+
+    vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_LoadColors(tcTmpPalette, u8ColorCnt, u8PaletteIndex), StrExtra.c_str());
+}
+
+static void vAppCli_SendResponse(const char* pcCommandName, eApp_RetVal eRetval, const char* pcExtraString) {
+    snprintf(tcCLI_WriteBuffer, CLI_TX_BUFFER_SIZE, "%s: %s %s\r\n>", pcReturnValueToString(eRetval), pcCommandName, pcExtraString ? pcExtraString : "\0");
     APP_TRACE(tcCLI_WriteBuffer);
 }
 
+static char* pcReturnValueToString(eApp_RetVal eRet) {
+    switch (eRet) {
+        case eRet_Warning:
+            return (char*)"Warning";
+        case eRet_Ok:
+            return (char*)"Ok";
+        case eRet_Error:
+            return (char*)"Error";
+        case eRet_BadParameter:
+            return (char*)"Bad parameter";
+        case eRet_InternalError:
+            return (char*)"Internal error";
+        default:
+            return (char*)"Unknown";
+    }
+}
 
-void vCallback_error(cmd* xCommand) {
-
+static void vCallback_error(cmd_error* xError) {
+    CommandError cmdError(xError);
+    String ErrStr = cmdError.toString();
+    vAppCli_SendResponse(ErrStr.c_str(), eRet_Error, NULL);
 }

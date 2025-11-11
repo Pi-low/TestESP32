@@ -67,11 +67,28 @@ SubStrip::~SubStrip() {
  ******************************************************************************/
 SubStrip::TeRetVal SubStrip::eGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
     TeRetVal eRet = RET_OK;
-    if ((u8NbLeds > _u8NbLeds) || (leds == NULL) || !_bDynamic) {
-        _MNG_RETURN(RET_INTERNAL_ERROR);
-    }
+    if ((u8NbLeds > _u8NbLeds) || (leds == NULL))
+    { _MNG_RETURN(RET_BAD_PARAMETER); }
+    else if (!_bDynamic)
+    { _MNG_RETURN(RET_INTERNAL_ERROR); }
     else {
         memcpy(leds, _SubLeds, u8NbLeds * sizeof(CRGB));
+    }
+    return eRet;
+}
+
+/*******************************************************************************
+ * @brief Sets the sub-strip LED content from the provided LED array.
+ * @param leds Pointer to the source LED array.
+ * @param u8NbLeds Number of LEDs to set.
+ ******************************************************************************/
+SubStrip::TeRetVal SubStrip::eSetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
+    TeRetVal eRet = RET_OK;
+    if ((leds == NULL) || (u8NbLeds > _u8NbLeds)) {
+        _MNG_RETURN(RET_BAD_PARAMETER);
+    }
+    else {
+        memcpy(_SubLeds, leds, u8NbLeds * sizeof(CRGB));
     }
     return eRet;
 }
@@ -93,11 +110,6 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
                 _bTrigger = true;
             }
             vAnimateRaindrops();
-            break;
-
-        case FIRE:
-            // Call fire animation function
-            vAnimateFire();
             break;
 
         case CHECKERED:
@@ -387,9 +399,8 @@ void SubStrip::vAnimateGlitter() {
         CRGB *pPixel = NULL;
         for (uint8_t i = 0; i < _u8ColorNb; i++) {
             pPixel = _SubLeds + (random8() % _u8NbLeds);
-            if (*pPixel == CRGB::Black) {
-                *pPixel = _ColorPalette[i];
-            }
+            // if (*pPixel == CRGB::Black)
+            { *pPixel = _ColorPalette[i]; }
         }
     }
     _u8DelayRate++;
@@ -420,10 +431,6 @@ void SubStrip::vAnimateRaindrops() {
         }
     }
     _u8DelayRate++;
-}
-
-void SubStrip::vAnimateFire() {
-    // Placeholder for fire animation
 }
 
 /*******************************************************************************

@@ -15,10 +15,11 @@
 #include <string.h>
 
 typedef enum eApp_RetVal{
-    eRet_Warning = 1,
-    eRet_Ok = 0,
-    eRet_Error = -1,
-    eRet_Wait = -2,
+    eRet_Warning        = 1,
+    eRet_Ok             = 0,
+    eRet_Error          = -1,
+    eRet_BadParameter   = eRet_Error - 1,
+    eRet_InternalError  = eRet_Error - 2,
 } eApp_RetVal;
 
 #endif // _TYPEDEFS_H

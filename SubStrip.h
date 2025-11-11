@@ -29,7 +29,6 @@ public:
         NONE,
         GLITTER,
         RAINDROPS,
-        FIRE,
         CHECKERED,
         WAVE,
         NB_ANIMS
@@ -43,6 +42,7 @@ public:
     SubStrip(uint8_t u8NbLeds, CRGB *pLeds);
     ~SubStrip();
     TeRetVal eGetSubStrip(CRGB *leds, uint8_t u8NbLeds);
+    TeRetVal eSetSubStrip(CRGB *leds, uint8_t u8NbLeds);
     void vManageAnimation(uint32_t u32Now); // to be called into loop()
     TeRetVal eSetAnimation(TeAnimation eAnim);
     TeRetVal eSetAnimation(TeAnimation eAnim, CRGB *pPalette);
@@ -67,12 +67,12 @@ private:
     bool _bDynamic; //dynamic memory allocation of CRGB substrip
     uint8_t _u8ColorNb; // Number of colors in the palette
     uint8_t _u8NbLeds; // Number of LEDs in the sub-strip
-    uint8_t _u8Speed; // Animation speed
+
+    /* Animation parameters */
+    uint8_t _u8Speed; // Animation speed, aka prescaler
     uint32_t _u32Period; // Animation period
     uint32_t _u32Timeout; // Current time for animation timing
     TeDirection _eDirection = FORWARD_INOUT;
-
-    /* Animation parameters */
     uint8_t _u8Index;
     uint8_t _u8DelayRate;
     uint8_t _u8FadeRate;
@@ -89,7 +89,6 @@ private:
     uint8_t u8FadeTimeToRate(uint16_t u16FadeTime);
     void vAnimateGlitter(void);
     void vAnimateRaindrops(void);
-    void vAnimateFire(void);
     void vAnimateCheckered(void);
     void vAnimateWave(void);
     TeRetVal eInitCheckered(void);
