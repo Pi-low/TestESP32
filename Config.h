@@ -35,4 +35,6 @@
 #define APP_TRACE(x)     vAppPrintUtils_Print(x, strlen(x))
 #endif
 
+eApp_RetVal eAppConfig_init(void);
+
 #endif // _CONFIG_H

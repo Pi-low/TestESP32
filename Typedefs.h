@@ -9,11 +9,6 @@
 #ifndef _TYPEDEFS_H
 #define _TYPEDEFS_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-
 typedef enum eApp_RetVal{
     eRet_Warning        = 1,
     eRet_Ok             = 0,
