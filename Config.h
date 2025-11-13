@@ -32,9 +32,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-#define APP_TRACE(x)     vAppPrintUtils_Print(x, strlen(x))
 #endif
 
 eApp_RetVal eAppConfig_init(void);
+eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath);
 
 #endif // _CONFIG_H
