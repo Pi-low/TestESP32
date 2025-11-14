@@ -36,5 +36,6 @@
 
 eApp_RetVal eAppConfig_init(void);
 eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath);
+eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath);
 
 #endif // _CONFIG_H

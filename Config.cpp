@@ -49,7 +49,7 @@ const char CtcAppCfg_DefDeviceName[] = "DEVICE_00";
 const char CtcAppCfg_DefWifi[] = R"([{"SSID":null,"PWD": null}])";
 const char CtcAppCfg_DefMqtt[] = R"({"SERVER":null,"PORT":8883,"CFG_TOPIC":"/lumiapp/config","CMD_TOPIC":"/lumiapp/cmd","KEEPALIVE":60})";
 const char CtcAppCfg_DefPalettes[] = R"([{"NAME":"default","COLORS":["ffffff","ff0000"]}])";
-const char CtcAppCfg_DefWorkTimeslot = R"(["18:00:00","22:00:00"])";
+const char CtcAppCfg_DefWorkTimeSlot[] = R"(["18:00:00","22:00:00"])";
 const int32_t Cti32AppCfg_DefStripAssembly[5] = {20, 20, 20, 20, 20};
 
 const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
@@ -114,7 +114,7 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         TYPE_JSON_ARRAY,
         2,
         TYPE_JSON_STRING,
-        CtcAppCfg_DefWorkTimeslot,
+        CtcAppCfg_DefWorkTimeSlot,
         0
     },
     {
@@ -127,13 +127,14 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
     }
 };
 
-JsonDocument(2048) jAppCfg_Config;
+JsonDocument jAppCfg_Config;
 
 /*******************************************************************************
  *  Prototypes
  ******************************************************************************/
-template < class Y, class T >static void vAppCfg_AddArrayToObject(Y &doc, const char *Childstring, T pValue, uint8_t u8ArraySize);
-eApp_RetVal eAppCfg_SetDefaultConfig(const char *pcToFilePath);
+template <class Y, class T>
+static void vAppCfg_AddArrayToObject(Y &doc, const char *Childstring, T pValue, uint8_t u8ArraySize);
+eApp_RetVal eAppCfg_SetDefaultConfig(void);
 
 /*******************************************************************************
  *  Functions
@@ -165,6 +166,13 @@ eApp_RetVal eAppConfig_init(void)
 
     if (bFret)
     {
+        if (eAppCfg_LoadConfig(CONFIG_FILE_PATH) < eRet_Ok)
+        {
+            if (eAppCfg_SetDefaultConfig() < eRet_Ok)
+                _MNG_RETURN(eRet_InternalError);
+            else if (eAppCfg_SaveConfig(CONFIG_FILE_PATH) < eRet_Ok)
+                _MNG_RETURN(eRet_InternalError);
+        }
     }
     else
     {
@@ -184,44 +192,72 @@ eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath)
 {
     eApp_RetVal eRet = eRet_Ok;
     DeserializationError eError;
-    char tcWrBuffer[128];
     File xConfigFile = FFat.open(pcFromFilePath, FILE_READ);
     if (!xConfigFile)
     {
-        APP_TRACE("Config file does not exist...\r\n");
+        APP_TRACE("Config file does not exist.\r\n");
         _MNG_RETURN(eRet_InternalError);
     }
     else if ((eError = deserializeJson(jAppCfg_Config, xConfigFile)) != DeserializationError::Ok)
     {
-        char tcWrBuffer[128];
         _MNG_RETURN(eRet_InternalError);
+        APP_TRACE("deserializeJson error!\r\n");
     }
-    snprintf(tcWrBuffer, 128, "Loading config: %s\r\n", eError.c_str());
-    APP_TRACE(tcWrBuffer);
 
     return eRet;
 }
 
-eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath)
-{
-    eApp_RetVal eRet = eRet_Ok;
-    char tcWrBuffer[128];
-
-}
-
-
 /*******************************************************************************
- * @brief Set default configuration
+ * @brief Save configuration to file
  * 
  * @param pcToFilePath 
  * @return eApp_RetVal 
  ******************************************************************************/
-eApp_RetVal eAppCfg_SetDefaultConfig(const char *pcToFilePath)
+eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath)
 {
     eApp_RetVal eRet = eRet_Ok;
-    TstAppCfg_ParamObj *pstParam = tstAppCfg_Config;
+
+    if (pcToFilePath == NULL)
+    {
+        _MNG_RETURN(eRet_InternalError);
+    }
+    else
+    {
+        File xConfigFile = FFat.open(pcToFilePath, FILE_WRITE);
+        if (!xConfigFile)
+        {
+            _MNG_RETURN(eRet_InternalError);
+            APP_TRACE("Cannot open config file!\r\n");
+        }
+        else
+        {
+            if (!serializeJson(jAppCfg_Config, xConfigFile))
+            {
+                _MNG_RETURN(eRet_InternalError);
+                APP_TRACE("Failed to save config!\r\n");
+            }
+            else
+            {
+                APP_TRACE("Config saved!\r\n");
+            }
+            xConfigFile.close();
+        }
+    }
+
+    return eRet;
+}
+
+/*******************************************************************************
+ * @brief Set default configuration
+ * 
+ * @return eApp_RetVal 
+ ******************************************************************************/
+eApp_RetVal eAppCfg_SetDefaultConfig(void)
+{
+    eApp_RetVal eRet = eRet_Ok;
+    TstAppCfg_ParamObj *pstParam = (TstAppCfg_ParamObj*) tstAppCfg_Config;
     DeserializationError eError;
-    char tcPrint[128] = "Json deserialization: ";
+
     for (uint8_t i = 0; i < CFG_NB_OBJ; i++)
     {
         switch (pstParam->eDataType)
@@ -235,6 +271,7 @@ eApp_RetVal eAppCfg_SetDefaultConfig(const char *pcToFilePath)
             break;
 
         case TYPE_JSON_ARRAY:
+        {
             switch (pstParam->eArrayType)
             {
             case TYPE_JSON_NUMBER:
@@ -246,46 +283,52 @@ eApp_RetVal eAppCfg_SetDefaultConfig(const char *pcToFilePath)
                 break;
 
             case TYPE_JSON_OBJECT:
-                JsonDocument jSub(256);
+            {
+                JsonDocument jSub;
                 eError = deserializeJson(jSub, (const char *)pstParam->pvDefaultValue);
-                vAppCfg_AddArrayToObject(jAppCfg_Config, pstParam->pcName, jSub.as<JsonArray>(), pstParam->u8ArraySize);
-                break;
-
-            default:
-                break;
+                if ((eError == DeserializationError::Ok) && !jSub.isNull())
+                    vAppCfg_AddArrayToObject(jAppCfg_Config, pstParam->pcName, jSub.as<JsonArray>(), pstParam->u8ArraySize);
             }
             break;
 
+            default:
+                break;
+            } // switch()
+        }
+        break;
+
         case TYPE_JSON_OBJECT:
-            JsonDocument jSub(256);
+        {
+            JsonDocument jSub;
+            JsonObject Obj = jAppCfg_Config[pstParam->pcName].to<JsonObject>();
             eError = deserializeJson(jSub, pstParam->pvDefaultValue);
-            JsonVariant jVar = jSub.as<JsonVariant>();
-            jAppCfg_Config[pstParam->pcName] = jVar;
-            break;
+            if ((eError == DeserializationError::Ok) && !Obj.isNull())
+                Obj = jSub.as<JsonObject>();
+        }
+        break;
 
         default:
             break;
-        }
+        } //switch()
 
         if (eError != DeserializationError::Ok)
         {
             _MNG_RETURN(eRet_InternalError);
+            APP_TRACE("Set defaultConfig error !\r\n");
             break;
         }
-    }
-    strcat(tcPrint, eError.c_str());
-    strcat(tcPrint, "\r\n");
-    APP_TRACE(tcPrint);
+    } //for(;;)
     return eRet;
 }
 
-template < class Y, class T >static void vAppCfg_AddArrayToObject(Y &doc, const char *Childstring, T pValue, uint8_t u8ArraySize)
+template <class Y, class T>
+static void vAppCfg_AddArrayToObject(Y &doc, const char *Childstring, T pValue, uint8_t u8ArraySize)
 {
     if ((u8ArraySize >= 0) && (pValue != NULL))
     {
-        JsonArray jsonItem = doc.createNestedArray(Childstring);
+        auto jsonItem = doc[Childstring].template to<JsonArray>();
 
-        if (jsonItem.isNull() == false)
+        if (!jsonItem.isNull())
         {
             for (uint8_t i = 0; i < u8ArraySize; i++)
             {
