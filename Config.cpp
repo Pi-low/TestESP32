@@ -46,8 +46,8 @@ typedef struct {
  *  Global variable
  ******************************************************************************/
 const char CtcAppCfg_DefDeviceName[] = "DEVICE_00";
-const char CtcAppCfg_DefWifi[] = R"([{"SSID":null,"PWD": null}])";
-const char CtcAppCfg_DefMqtt[] = R"({"SERVER":null,"PORT":8883,"CFG_TOPIC":"/lumiapp/config","CMD_TOPIC":"/lumiapp/cmd","KEEPALIVE":60})";
+const char CtcAppCfg_DefCfgTopic[] = "/lumiapp/config";
+const char CtcAppCfg_DefCmdTopic[] = "/lumiapp/cmd";
 const char CtcAppCfg_DefPalettes[] = R"([{"NAME":"default","COLORS":["ffffff","ff0000"]}])";
 const char CtcAppCfg_DefWorkTimeSlot[] = R"(["18:00:00","22:00:00"])";
 const int32_t Cti32AppCfg_DefStripAssembly[5] = {20, 20, 20, 20, 20};
@@ -62,19 +62,59 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         0
     },
     {
-        "WIFI",
-        TYPE_JSON_ARRAY,
-        1,
-        TYPE_JSON_OBJECT,
-        CtcAppCfg_DefWifi,
+        "SSID",
+        TYPE_JSON_STRING,
+        0,
+        TYPE_JSON_NULL,
+        NULL,
         0
     },
     {
-        "MQTT",
-        TYPE_JSON_OBJECT,
+        "PWD",
+        TYPE_JSON_STRING,
         0,
         TYPE_JSON_NULL,
-        CtcAppCfg_DefMqtt,
+        NULL,
+        0
+    },
+    {
+        "MQTT_ADDR",
+        TYPE_JSON_STRING,
+        0,
+        TYPE_JSON_NULL,
+        NULL,
+        0
+    },
+    {
+        "MQTT_PORT",
+        TYPE_JSON_NUMBER,
+        0,
+        TYPE_JSON_NULL,
+        8883,
+        0
+    },
+    {
+        "MQTT_CFG_TOPIC",
+        TYPE_JSON_STRING,
+        0,
+        TYPE_JSON_NULL,
+        CtcAppCfg_DefCfgTopic,
+        0
+    },
+    {
+        "MQTT_CMD_TOPIC",
+        TYPE_JSON_STRING,
+        0,
+        TYPE_JSON_NULL,
+        CtcAppCfg_DefCmdTopic,
+        0
+    },
+    {
+        "MQTT_KEEPALIVE",
+        TYPE_JSON_NUMBER,
+        0,
+        TYPE_JSON_NULL,
+        60,
         0
     },
     {
@@ -173,6 +213,7 @@ eApp_RetVal eAppConfig_init(void)
             else if (eAppCfg_SaveConfig(CONFIG_FILE_PATH) < eRet_Ok)
                 _MNG_RETURN(eRet_InternalError);
         }
+        serializeJsonPretty(jAppCfg_Config, Serial);
     }
     else
     {
@@ -202,6 +243,11 @@ eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath)
     {
         _MNG_RETURN(eRet_InternalError);
         APP_TRACE("deserializeJson error!\r\n");
+    }
+    else
+    {
+        xConfigFile.close();
+        APP_TRACE("Config loaded!\r\n");
     }
 
     return eRet;
