@@ -15,15 +15,12 @@
 #include "Config.h"
 #include "FS.h"
 #include "FFat.h"
-#include <ArduinoJson.h>
-#include <ArduinoJson.hpp>
 
 /*******************************************************************************
  *  Types, nums, macros
  ******************************************************************************/
-#define CONFIG_FILE_PATH    "/config.cfg"
 #define _MNG_RETURN(x)                      eRet = x
-#define CFG_NB_OBJ                          9
+#define CFG_NB_OBJ                          14
 
 typedef enum {
     TYPE_JSON_NULL,
@@ -48,7 +45,8 @@ typedef struct {
 const char CtcAppCfg_DefDeviceName[] = "DEVICE_00";
 const char CtcAppCfg_DefCfgTopic[] = "/lumiapp/config";
 const char CtcAppCfg_DefCmdTopic[] = "/lumiapp/cmd";
-const char CtcAppCfg_DefPalettes[] = R"([{"NAME":"default","COLORS":["ffffff","ff0000"]}])";
+const char CtcAppCfg_DefPalettes[] = R"({[{"NAME":"default","COLORS":["ffffff","ff0000"]}]})";
+const char CtcAppCfg_DefProgArr[] = R"({[{"ANIM":"glitter","DURATION":120},{"ANIM":"raindrops","DURATION":120}]})";
 const char CtcAppCfg_DefWorkTimeSlot[] = R"(["18:00:00","22:00:00"])";
 const int32_t Cti32AppCfg_DefStripAssembly[5] = {20, 20, 20, 20, 20};
 
@@ -90,8 +88,8 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         TYPE_JSON_NUMBER,
         0,
         TYPE_JSON_NULL,
-        8883,
-        0
+        NULL,
+        8883
     },
     {
         "MQTT_CFG_TOPIC",
@@ -114,8 +112,8 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         TYPE_JSON_NUMBER,
         0,
         TYPE_JSON_NULL,
-        60,
-        0
+        NULL,
+        60
     },
     {
         "TOKEN",
@@ -144,9 +142,9 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
     {
         "DEVICE_PROG_ANIM",
         TYPE_JSON_ARRAY,
-        0,
+        2,
         TYPE_JSON_OBJECT,
-        NULL,
+        CtcAppCfg_DefProgArr,
         0
     },
     {
@@ -174,7 +172,7 @@ JsonDocument jAppCfg_Config;
  ******************************************************************************/
 template <class Y, class T>
 static void vAppCfg_AddArrayToObject(Y &doc, const char *Childstring, T pValue, uint8_t u8ArraySize);
-eApp_RetVal eAppCfg_SetDefaultConfig(void);
+// eApp_RetVal eAppCfg_SetDefaultConfig(void);
 
 /*******************************************************************************
  *  Functions
@@ -213,7 +211,6 @@ eApp_RetVal eAppConfig_init(void)
             else if (eAppCfg_SaveConfig(CONFIG_FILE_PATH) < eRet_Ok)
                 _MNG_RETURN(eRet_InternalError);
         }
-        serializeJsonPretty(jAppCfg_Config, Serial);
     }
     else
     {
@@ -304,6 +301,8 @@ eApp_RetVal eAppCfg_SetDefaultConfig(void)
     TstAppCfg_ParamObj *pstParam = (TstAppCfg_ParamObj*) tstAppCfg_Config;
     DeserializationError eError;
 
+    jAppCfg_Config.clear();
+
     for (uint8_t i = 0; i < CFG_NB_OBJ; i++)
     {
         switch (pstParam->eDataType)
@@ -333,7 +332,11 @@ eApp_RetVal eAppCfg_SetDefaultConfig(void)
                 JsonDocument jSub;
                 eError = deserializeJson(jSub, (const char *)pstParam->pvDefaultValue);
                 if ((eError == DeserializationError::Ok) && !jSub.isNull())
-                    vAppCfg_AddArrayToObject(jAppCfg_Config, pstParam->pcName, jSub.as<JsonArray>(), pstParam->u8ArraySize);
+                {
+                    // vAppCfg_AddArrayToObject(jAppCfg_Config, pstParam->pcName, jVar.as<JsonArray>(), pstParam->u8ArraySize);
+                    JsonArray jArr = jSub.as<JsonArray();
+                    jAppCfg_Config[pstParam->pcName] = jArr;
+                }
             }
             break;
 
@@ -363,6 +366,11 @@ eApp_RetVal eAppCfg_SetDefaultConfig(void)
             APP_TRACE("Set defaultConfig error !\r\n");
             break;
         }
+        else
+        {
+            APP_TRACE(". ");
+        }
+        pstParam++;
     } //for(;;)
     return eRet;
 }

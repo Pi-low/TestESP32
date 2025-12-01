@@ -11,6 +11,8 @@
 
 #include <Arduino.h>
 #include "Typedefs.h"
+#include <ArduinoJson.h>
+#include <ArduinoJson.hpp>
 
 /*******************************************************************************
  *  GENERAL CONFIGURATION 
@@ -20,6 +22,8 @@
 #define APP_FASTLED     1 // activate ledstrip management
 #define ESP_LED_PIN     8
 #define APP_PRINT       1
+
+#define CONFIG_FILE_PATH    "/config.cfg"
 
 /*******************************************************************************
  *  DEBUG CONFIGURATION 
@@ -34,8 +38,11 @@
 #include "freertos/queue.h"
 #endif
 
+extern JsonDocument jAppCfg_Config;
+
 eApp_RetVal eAppConfig_init(void);
 eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath);
 eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath);
+eApp_RetVal eAppCfg_SetDefaultConfig(void);
 
 #endif // _CONFIG_H
