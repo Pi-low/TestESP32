@@ -31,8 +31,8 @@ void setup() {
 #if APP_PRINT
     Serial.begin(115200);
     vAppPrintUtils_init();
-    vAppCli_init();
     eAppConfig_init();
+    vAppCli_init();
 #endif
     pinMode(ESP_LED_PIN, OUTPUT);
 #if APP_FASTLED
