@@ -42,9 +42,12 @@ static void vAppCli_Task(void* pvArg);
     PARAM(offset)                       \
     PARAM(bpm)                          \
     PARAM(palette)                      \
-    PARAM(addColor)
+    PARAM(addColor)                     \
+    PARAM(resetConf)                    \
+    PARAM(printConf)
 
-#define NB_COMMANDS 13
+
+#define NB_COMMANDS 15
 
 typedef enum {
     FOREACH_CLI_CMD(GENERATE_CMD_ENUM)
@@ -63,6 +66,8 @@ static void vCallback_offset(cmd* xCommand);
 static void vCallback_bpm(cmd* xCommand);
 static void vCallback_palette(cmd* xCommand);
 static void vCallback_addColor(cmd* xCommand);
+static void vCallback_resetConf(cmd* xCommand);
+static void vCallback_printConf(cmd* xCommand);
 
 static void vAppCli_SendResponse(const char* pcCommandName, eApp_RetVal eRetval, const char* pcExtraString);
 static char* pcReturnValueToString(eApp_RetVal eRet);
@@ -84,10 +89,12 @@ void vAppCli_init(void) {
     SET_CALLBACK(bpm);
     SET_CALLBACK(palette);
     SET_CALLBACK(addColor);
+    SET_CALLBACK(resetConf);
+    SET_CALLBACK(printConf);
     xCli.setErrorCallback(vCallback_error);
 
     xTaskCreate(vAppCli_Task, CLI_TASK, CLI_TASK_HEAP, CLI_TASK_PARAM, CLI_TASK_PRIO, CLI_TASK_HANDLE);
-    APP_TRACE(">");
+    APP_TRACE("\r\n>");
 }
 
 #if APP_TASKS
@@ -354,6 +361,33 @@ static char* pcReturnValueToString(eApp_RetVal eRet) {
             return (char*)"Internal error";
         default:
             return (char*)"Unknown";
+    }
+}
+
+static void vCallback_resetConf(cmd* xCommand) {
+    remove(CONFIG_FILE_PATH);
+    if (eAppCfg_SetDefaultConfig() < eRet_Ok)
+    {
+        APP_TRACE("Could not set default config !\r\n");
+    }
+    else
+    {
+        eAppCfg_SaveConfig(CONFIG_FILE_PATH);
+    }
+}
+
+static void vCallback_printConf(cmd* xCommand) {
+    uint16_t u16PrettyCfg_Size = measureJsonPretty(jAppCfg_Config);
+    char* pcPrettyConfig = (char*) pvPortMalloc(u16PrettyCfg_Size);
+    if (pcPrettyConfig)
+    {
+        serializeJsonPretty(jAppCfg_Config, pcPrettyConfig, u16PrettyCfg_Size);
+        vAppPrintUtils_Print(pcPrettyConfig, u16PrettyCfg_Size);
+        vPortFree(pcPrettyConfig);
+    }
+    else
+    {
+        APP_TRACE("Malloc error !!\r\n");
     }
 }
 

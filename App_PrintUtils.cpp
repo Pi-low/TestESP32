@@ -17,7 +17,7 @@
 #define PRINT_UTILS_HANDLE  NULL
 #define PRINT_UTILS_PERIOD  100
 
-#define _PRINTQ_SIZE        16
+#define _PRINTQ_SIZE        64
 
 static QueueHandle_t serialPrintQ;
 
@@ -43,9 +43,28 @@ void vAppPrintUtils_init(void) {
  ******************************************************************************/
 void vAppPrintUtils_Print(const char* pcDataToPrint, BaseType_t xLength) {
     if (serialPrintQ != NULL) {
-        char pcbuffer[128] = {0};
-        memcpy(pcbuffer, pcDataToPrint, MIN(xLength, PRINT_UTILS_MAX_BUF-1));
-        xQueueSend(serialPrintQ, pcbuffer, portMAX_DELAY);
+        uint8_t u8SecureLoop = 0;
+        char *pcIndex = (char*) pcDataToPrint;
+        BaseType_t xLocalLength = xLength;
+        BaseType_t xDataToSend = 0;
+        char pcbuffer[PRINT_UTILS_MAX_BUF];
+        do
+        {
+            memset(pcbuffer, 0, 128);
+            xDataToSend = (xLocalLength > PRINT_UTILS_MAX_BUF) ? PRINT_UTILS_MAX_BUF : xLocalLength;
+            xLocalLength = ((xLocalLength - xDataToSend) > 0) ? xLocalLength - xDataToSend : 0;
+            memcpy(pcbuffer, pcIndex, xDataToSend);
+            xQueueSend(serialPrintQ, pcbuffer, portMAX_DELAY);
+
+            pcIndex += xDataToSend;
+            u8SecureLoop++;
+        } while ((xLocalLength > 0) && (pcIndex != NULL) && (u8SecureLoop < _PRINTQ_SIZE));
+
+        if (u8SecureLoop >= _PRINTQ_SIZE)
+        {
+            snprintf(pcbuffer, 128, "Warning: end of print (%d)\r\n", u8SecureLoop);
+            xQueueSend(serialPrintQ, pcbuffer, portMAX_DELAY);
+        }
     }
     else {
         Serial.print(pcDataToPrint);
@@ -63,6 +82,7 @@ void vAppPrintUtils_Task(void* pvArg) {
         // vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(PRINT_UTILS_PERIOD));
         if (xQueueReceive(serialPrintQ, pcBuffer, portMAX_DELAY) == pdPASS) {
             Serial.print(pcBuffer);
+            memset(pcBuffer, 0, PRINT_UTILS_MAX_BUF);
         }
     }
 }
