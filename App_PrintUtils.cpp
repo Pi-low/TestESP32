@@ -50,8 +50,8 @@ void vAppPrintUtils_Print(const char* pcDataToPrint, BaseType_t xLength) {
         char pcbuffer[PRINT_UTILS_MAX_BUF];
         do
         {
-            memset(pcbuffer, 0, 128);
-            xDataToSend = (xLocalLength > PRINT_UTILS_MAX_BUF) ? PRINT_UTILS_MAX_BUF : xLocalLength;
+            memset(pcbuffer, 0, PRINT_UTILS_MAX_BUF);
+            xDataToSend = (xLocalLength > (PRINT_UTILS_MAX_BUF-1)) ? (PRINT_UTILS_MAX_BUF-1) : xLocalLength;
             xLocalLength = ((xLocalLength - xDataToSend) > 0) ? xLocalLength - xDataToSend : 0;
             memcpy(pcbuffer, pcIndex, xDataToSend);
             xQueueSend(serialPrintQ, pcbuffer, portMAX_DELAY);
@@ -62,7 +62,7 @@ void vAppPrintUtils_Print(const char* pcDataToPrint, BaseType_t xLength) {
 
         if (u8SecureLoop >= _PRINTQ_SIZE)
         {
-            snprintf(pcbuffer, 128, "Warning: end of print (%d)\r\n", u8SecureLoop);
+            snprintf(pcbuffer, PRINT_UTILS_MAX_BUF, "Warning: end of print (%d)\r\n", u8SecureLoop);
             xQueueSend(serialPrintQ, pcbuffer, portMAX_DELAY);
         }
     }

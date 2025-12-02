@@ -365,6 +365,7 @@ static char* pcReturnValueToString(eApp_RetVal eRet) {
 }
 
 static void vCallback_resetConf(cmd* xCommand) {
+    APP_TRACE("Resetting config file...\r\n");
     remove(CONFIG_FILE_PATH);
     if (eAppCfg_SetDefaultConfig() < eRet_Ok)
     {
@@ -379,11 +380,13 @@ static void vCallback_resetConf(cmd* xCommand) {
 static void vCallback_printConf(cmd* xCommand) {
     uint16_t u16PrettyCfg_Size = measureJsonPretty(jAppCfg_Config);
     char* pcPrettyConfig = (char*) pvPortMalloc(u16PrettyCfg_Size);
+    APP_TRACE("Print pretty config:\r\n");
     if (pcPrettyConfig)
     {
         serializeJsonPretty(jAppCfg_Config, pcPrettyConfig, u16PrettyCfg_Size);
         vAppPrintUtils_Print(pcPrettyConfig, u16PrettyCfg_Size);
         vPortFree(pcPrettyConfig);
+        APP_TRACE("\r\n");
     }
     else
     {
