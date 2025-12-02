@@ -28,34 +28,25 @@ void vAppMain(void *pvParam);
 #endif
 
 void setup() {
-#if APP_PRINT
     Serial.begin(115200);
-    vAppPrintUtils_init();
-    eAppConfig_init();
-    vAppCli_init();
-#endif
     pinMode(ESP_LED_PIN, OUTPUT);
+#if APP_PRINT
+    vAppPrintUtils_init();
+#endif
+    eAppConfig_init();
+#if APP_WIFI
+    eAppWifi_init();
+#endif
 #if APP_FASTLED
     AppLED_init();
 #endif
-#if APP_WIFI
-#if APP_PRINT
-    Serial.println("Connection to " MY_SSID);
-#endif
-    eAppWifi_init(5000);
-#endif
+    vAppCli_init();
 #if APP_TASKS
     xTaskCreate(vAppMain, MAIN_TASK, MAIN_TASK_HEAP, MAIN_TASK_PARAM, MAIN_TASK_PRIO, MAIN_TASK_HANDLE);
 #endif
 }
 
 void loop() {
-#if APP_WIFI
-    eAppWifi_Tasking();
-#endif
-#if (APP_FASTLED) && (!APP_TASKS)
-    AppLED_showLoop();
-#endif
 }
 
 #if APP_TASKS

@@ -10,19 +10,16 @@
 #define _APP_WIFI_H
 
 #include "Config.h"
+#include "App_PrintUtils.h"
 
 #if defined(APP_WIFI) && APP_WIFI
 
-#define WIFI_TASKING 500
-#define MY_DEVICENAME   "Proto01"
-// #define MY_SSID         ""
-// #define MY_PWD          ""
+#define WIFI_TASKING (5000)
 
 #include <WiFi.h>
 
-eApp_RetVal eAppWifi_init(uint32_t u32Timeout);
-void eAppWifi_RssiGauge(void);
-void eAppWifi_Tasking(void);
+eApp_RetVal eAppWifi_init(void);
+void vappWifi_GetWifiConfig(void);
 
 #endif // APP_WIFI
 
