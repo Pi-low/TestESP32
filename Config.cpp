@@ -20,7 +20,7 @@
  *  Types, nums, macros
  ******************************************************************************/
 #define _MNG_RETURN(x)                      eRet = x
-#define CFG_NB_OBJ                          14
+#define CFG_NB_OBJ                          9
 
 typedef enum {
     TYPE_JSON_NULL,
@@ -42,13 +42,14 @@ typedef struct {
 /*******************************************************************************
  *  Global variable
  ******************************************************************************/
+static SemaphoreHandle_t xJsonMutex;
 const char CtcAppCfg_DefDeviceName[] = "DEVICE_00";
-const char CtcAppCfg_DefCfgTopic[] = "/lumiapp/config";
-const char CtcAppCfg_DefCmdTopic[] = "/lumiapp/cmd";
-const char CtcAppCfg_DefPalettes[] = R"({[{"NAME":"default","COLORS":["ffffff","ff0000"]}]})";
-const char CtcAppCfg_DefProgArr[] = R"({[{"ANIM":"glitter","DURATION":120},{"ANIM":"raindrops","DURATION":120}]})";
-const char CtcAppCfg_DefWorkTimeSlot[] = R"(["18:00:00","22:00:00"])";
-const int32_t Cti32AppCfg_DefStripAssembly[5] = {20, 20, 20, 20, 20};
+const char CtcAppCfg_DefWifi[] = R"({"SSID":null,"PWD":null})";
+const char CtcAppCfg_DefMqtt[] = R"({"ADDR":null,"PORT":null,"CFG_TOPIC":"/lumiapp/config","CMD_TOPIC":"/lumiapp/cmd","KEEPALIVE":120})";
+const char CtcAppCfg_DefPalettes[] = R"([{"NAME":"default","COLORS":["ffffff","ff0000"]}])";
+const char CtcAppCfg_DefProgArr[] = R"([{"ANIM":"glitter","DURATION":120},{"ANIM":"raindrops","DURATION":120}])";
+const char CtcAppCfg_DefWorkTimeSlot[] = R"([{"ON":"17:30:00","OFF":"22:00:00"},{"ON":"06:30:00","OFF":"08:00:00"}])";
+// const int32_t Cti32AppCfg_DefStripAssembly[5] = {20, 20, 20, 20, 20};
 
 const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
     {
@@ -60,60 +61,20 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         0
     },
     {
-        "SSID",
-        TYPE_JSON_STRING,
+        "WIFI",
+        TYPE_JSON_OBJECT,
         0,
         TYPE_JSON_NULL,
-        NULL,
+        CtcAppCfg_DefWifi,
         0
     },
     {
-        "PWD",
-        TYPE_JSON_STRING,
+        "MQTT",
+        TYPE_JSON_OBJECT,
         0,
         TYPE_JSON_NULL,
-        NULL,
+        CtcAppCfg_DefMqtt,
         0
-    },
-    {
-        "MQTT_ADDR",
-        TYPE_JSON_STRING,
-        0,
-        TYPE_JSON_NULL,
-        NULL,
-        0
-    },
-    {
-        "MQTT_PORT",
-        TYPE_JSON_NUMBER,
-        0,
-        TYPE_JSON_NULL,
-        NULL,
-        8883
-    },
-    {
-        "MQTT_CFG_TOPIC",
-        TYPE_JSON_STRING,
-        0,
-        TYPE_JSON_NULL,
-        CtcAppCfg_DefCfgTopic,
-        0
-    },
-    {
-        "MQTT_CMD_TOPIC",
-        TYPE_JSON_STRING,
-        0,
-        TYPE_JSON_NULL,
-        CtcAppCfg_DefCmdTopic,
-        0
-    },
-    {
-        "MQTT_KEEPALIVE",
-        TYPE_JSON_NUMBER,
-        0,
-        TYPE_JSON_NULL,
-        NULL,
-        60
     },
     {
         "TOKEN",
@@ -126,9 +87,9 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
     {
         "DEVICE_SUBSTRIPS",
         TYPE_JSON_ARRAY,
-        5,
+        0,
         TYPE_JSON_NUMBER,
-        Cti32AppCfg_DefStripAssembly,
+        NULL,
         0
     },
     {
@@ -151,7 +112,7 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         "DEVICE_WORKING_TIMESLOT",
         TYPE_JSON_ARRAY,
         2,
-        TYPE_JSON_STRING,
+        TYPE_JSON_OBJECT,
         CtcAppCfg_DefWorkTimeSlot,
         0
     },
@@ -167,11 +128,13 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
 
 JsonDocument jAppCfg_Config;
 
+
 /*******************************************************************************
  *  Prototypes
  ******************************************************************************/
 template <class Y, class T>
 static void vAppCfg_AddArrayToObject(Y &doc, const char *Childstring, T pValue, uint8_t u8ArraySize);
+eApp_RetVal eAppCfg_ResetParam(TstAppCfg_ParamObj *FpstParam);
 // eApp_RetVal eAppCfg_SetDefaultConfig(void);
 
 /*******************************************************************************
@@ -190,6 +153,7 @@ eApp_RetVal eAppConfig_init(void)
     char tcWrBuffer[128];
     uint8_t i = 0;
     eApp_RetVal eRet = eRet_Ok;
+    xJsonMutex = xSemaphoreCreateMutex();
 
     while (((bFret = FFat.begin()) == false) && (i < 1))
     {
@@ -221,6 +185,36 @@ eApp_RetVal eAppConfig_init(void)
 }
 
 /*******************************************************************************
+ * @brief Lock json mutex
+ * 
+ * @return true
+ ******************************************************************************/
+bool bAppCfg_LockJson(void)
+{
+    bool bRet = false;
+    if (xJsonMutex != NULL)
+    {
+        bRet = xSemaphoreTake(xJsonMutex, portMAX_DELAY);
+    }
+    return bRet;
+}
+
+/*******************************************************************************
+ * @brief Unlock json mutex
+ * 
+ * @return true 
+ ******************************************************************************/
+bool bAppCfg_UnlockJson(void)
+{
+    bool bRet = false;
+    if (xJsonMutex != NULL)
+    {
+        bRet = xSemaphoreGive(xJsonMutex);
+    }
+    return bRet;
+}
+
+/*******************************************************************************
  * @brief Load configuration from file
  * 
  * @param pcFromFilePath 
@@ -236,15 +230,17 @@ eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath)
         APP_TRACE("Config file does not exist.\r\n");
         _MNG_RETURN(eRet_InternalError);
     }
-    else if ((eError = deserializeJson(jAppCfg_Config, xConfigFile)) != DeserializationError::Ok)
+    else if (bAppCfg_LockJson())
     {
-        _MNG_RETURN(eRet_InternalError);
-        APP_TRACE("deserializeJson error!\r\n");
-    }
-    else
-    {
+        if (deserializeJson(jAppCfg_Config, xConfigFile) != DeserializationError::Ok)
+        {
+            APP_TRACE("Deserialization error.\r\n");
+            _MNG_RETURN(eRet_JsonError);
+        }
+        else
+        { APP_TRACE("Config loaded!\r\n"); }
+        bAppCfg_UnlockJson();
         xConfigFile.close();
-        APP_TRACE("Config loaded!\r\n");
     }
 
     return eRet;
@@ -274,14 +270,16 @@ eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath)
         }
         else
         {
-            if (!serializeJson(jAppCfg_Config, xConfigFile))
+            if (bAppCfg_LockJson())
             {
-                _MNG_RETURN(eRet_InternalError);
-                APP_TRACE("Failed to save config!\r\n");
-            }
-            else
-            {
-                APP_TRACE("Config saved!\r\n");
+                if (!serializeJson(jAppCfg_Config, xConfigFile))
+                {
+                    _MNG_RETURN(eRet_JsonError);
+                    APP_TRACE("Failed to save config!\r\n");
+                }
+                else
+                { APP_TRACE("Config saved!\r\n"); }
+                bAppCfg_UnlockJson();
             }
             xConfigFile.close();
         }
@@ -298,80 +296,129 @@ eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath)
 eApp_RetVal eAppCfg_SetDefaultConfig(void)
 {
     eApp_RetVal eRet = eRet_Ok;
-    TstAppCfg_ParamObj *pstParam = (TstAppCfg_ParamObj*) tstAppCfg_Config;
-    DeserializationError eError;
-
+    TstAppCfg_ParamObj *pstParam = (TstAppCfg_ParamObj *)tstAppCfg_Config;
     jAppCfg_Config.clear();
 
-    for (uint8_t i = 0; i < CFG_NB_OBJ; i++)
+    for (uint8_t i = 0; (i < CFG_NB_OBJ) && (eRet >= eRet_Ok); i++)
     {
-        switch (pstParam->eDataType)
+        eRet = eAppCfg_ResetParam(pstParam);
+        if (eRet < eRet_Ok)
         {
-        case TYPE_JSON_NUMBER:
-            jAppCfg_Config[pstParam->pcName] = (int32_t)pstParam->i32DefaultNumber;
-            break;
-
-        case TYPE_JSON_STRING:
-            jAppCfg_Config[pstParam->pcName] = (const char *)pstParam->pvDefaultValue;
-            break;
-
-        case TYPE_JSON_ARRAY:
-        {
-            switch (pstParam->eArrayType)
-            {
-            case TYPE_JSON_NUMBER:
-                vAppCfg_AddArrayToObject(jAppCfg_Config, pstParam->pcName, (const int32_t *)pstParam->pvDefaultValue, pstParam->u8ArraySize);
-                break;
-
-            case TYPE_JSON_STRING:
-                vAppCfg_AddArrayToObject(jAppCfg_Config, pstParam->pcName, (const char **)pstParam->pvDefaultValue, pstParam->u8ArraySize);
-                break;
-
-            case TYPE_JSON_OBJECT:
-            {
-                JsonDocument jSub;
-                eError = deserializeJson(jSub, (const char *)pstParam->pvDefaultValue);
-                if ((eError == DeserializationError::Ok) && !jSub.isNull())
-                {
-                    // vAppCfg_AddArrayToObject(jAppCfg_Config, pstParam->pcName, jVar.as<JsonArray>(), pstParam->u8ArraySize);
-                    JsonArray jArr = jSub.as<JsonArray();
-                    jAppCfg_Config[pstParam->pcName] = jArr;
-                }
-            }
-            break;
-
-            default:
-                break;
-            } // switch()
-        }
-        break;
-
-        case TYPE_JSON_OBJECT:
-        {
-            JsonDocument jSub;
-            JsonObject Obj = jAppCfg_Config[pstParam->pcName].to<JsonObject>();
-            eError = deserializeJson(jSub, pstParam->pvDefaultValue);
-            if ((eError == DeserializationError::Ok) && !Obj.isNull())
-                Obj = jSub.as<JsonObject>();
-        }
-        break;
-
-        default:
-            break;
-        } //switch()
-
-        if (eError != DeserializationError::Ok)
-        {
-            _MNG_RETURN(eRet_InternalError);
-            APP_TRACE("Set defaultConfig error !\r\n");
-            break;
+            char tcPrint[40];
+            snprintf(tcPrint, 40, "Set defaultConfig error: (%d)\r\n", eRet);
+            APP_TRACE(tcPrint);
         }
         else
         {
             APP_TRACE(". ");
         }
         pstParam++;
-    } //for(;;)
+    }
+    return eRet;
+}
+
+/*******************************************************************************
+ * @brief Reset specific parameter from config
+ * 
+ * @param pcObjectKey 
+ * @return eApp_RetVal 
+ ******************************************************************************/
+eApp_RetVal eAppCfg_ResetParamKey(const char* pcObjectKey)
+{
+    eApp_RetVal eRet = eRet_Ok;
+    TstAppCfg_ParamObj *pstParam = (TstAppCfg_ParamObj *)tstAppCfg_Config;
+    uint8_t i = 0;
+
+    // Check existing param key from default config
+    while ((strcmp(pcObjectKey, pstParam->pcName) != 0) && (i < CFG_NB_OBJ))
+    {
+        pstParam++;
+        i++;
+    }
+
+    if (i >= CFG_NB_OBJ)
+    {   // Object param not found
+        _MNG_RETURN(eRet_InternalError);
+    }
+    else
+    {
+        eRet = eAppCfg_ResetParam(pstParam);
+    }
+    return eRet;
+}
+
+eApp_RetVal eAppCfg_ResetParam(TstAppCfg_ParamObj *FpstParam)
+{
+    eApp_RetVal eRet = eRet_Ok;
+    if (FpstParam == NULL)
+    { _MNG_RETURN(eRet_InternalError); }
+    else if (bAppCfg_LockJson())
+    {
+        switch (FpstParam->eDataType)
+        {
+        case TYPE_JSON_NUMBER:
+            jAppCfg_Config[FpstParam->pcName] = (int32_t)FpstParam->i32DefaultNumber;
+            break;
+
+        case TYPE_JSON_STRING:
+            jAppCfg_Config[FpstParam->pcName] = (FpstParam->pvDefaultValue != NULL) ? (const char *)FpstParam->pvDefaultValue : nullptr;
+            break;
+
+        case TYPE_JSON_ARRAY:
+        {
+            if ((FpstParam->pvDefaultValue != NULL) || FpstParam->u8ArraySize)
+            {
+                switch (FpstParam->eArrayType)
+                {
+                case TYPE_JSON_NUMBER:
+                    vAppCfg_AddArrayToObject(jAppCfg_Config, FpstParam->pcName, (const int32_t *)FpstParam->pvDefaultValue, FpstParam->u8ArraySize);
+                    break;
+
+                case TYPE_JSON_STRING:
+                    vAppCfg_AddArrayToObject(jAppCfg_Config, FpstParam->pcName, (const char **)FpstParam->pvDefaultValue, FpstParam->u8ArraySize);
+                    break;
+
+                case TYPE_JSON_OBJECT:
+                {
+                    JsonDocument jSub;
+                    if (deserializeJson(jSub, (const char *)FpstParam->pvDefaultValue) != DeserializationError::Ok)
+                    { _MNG_RETURN(eRet_JsonError); }
+                    else
+                    { jAppCfg_Config[FpstParam->pcName] = jSub.as<JsonArray>(); }
+                }
+                break;
+
+                default:
+                    jAppCfg_Config[FpstParam->pcName] = nullptr;
+                    break;
+                } // switch()
+            }
+            else
+            { jAppCfg_Config[FpstParam->pcName] = nullptr; }
+        }
+        break;
+
+        case TYPE_JSON_OBJECT:
+        {
+            if (FpstParam->pvDefaultValue != NULL)
+            {
+                JsonDocument jSub;
+                if ((deserializeJson(jSub, FpstParam->pvDefaultValue) != DeserializationError::Ok))
+                { _MNG_RETURN(eRet_JsonError); }
+                else
+                { jAppCfg_Config[FpstParam->pcName] = jSub.as<JsonObject>();  }
+            }
+            else
+            {  jAppCfg_Config[FpstParam->pcName] = nullptr; }
+        }
+        break;
+
+        default:
+            jAppCfg_Config[FpstParam->pcName] = nullptr;
+            break;
+        } // switch()
+        bAppCfg_UnlockJson();
+    }
     return eRet;
 }
 

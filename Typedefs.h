@@ -15,6 +15,7 @@ typedef enum eApp_RetVal{
     eRet_Error          = -1,
     eRet_BadParameter   = eRet_Error - 1,
     eRet_InternalError  = eRet_Error - 2,
+    eRet_JsonError      = eRet_Error - 3,
 } eApp_RetVal;
 
 #endif // _TYPEDEFS_H

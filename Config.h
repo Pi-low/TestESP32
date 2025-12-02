@@ -18,7 +18,7 @@
  *  GENERAL CONFIGURATION 
  ******************************************************************************/
 #define APP_TASKS       1 // use FreeRTOS
-#define APP_WIFI        0 // actiavate wifi tasking
+#define APP_WIFI        1 // actiavate wifi tasking
 #define APP_FASTLED     1 // activate ledstrip management
 #define ESP_LED_PIN     8
 #define APP_PRINT       1
@@ -44,5 +44,8 @@ eApp_RetVal eAppConfig_init(void);
 eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath);
 eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath);
 eApp_RetVal eAppCfg_SetDefaultConfig(void);
+eApp_RetVal eAppCfg_ResetParamKey(const char* pcObjectKey);
+bool bAppCfg_LockJson(void);
+bool bAppCfg_UnlockJson(void);
 
 #endif // _CONFIG_H
