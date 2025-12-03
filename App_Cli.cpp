@@ -444,6 +444,9 @@ static void vCallback_set(cmd* xCommand)
     {
         char pcTmp[64] = {0};
         snprintf(pcTmp, 64, "Set deviceName: %s\r\n>", arg_deviceName.getValue().c_str());
+        bAppCfg_LockJson();
+        jAppCfg_Config["DEVICE_NAME"] = arg_deviceName.getValue();
+        bAppCfg_UnlockJson();
         APP_TRACE(pcTmp);
     }
 }
@@ -478,6 +481,7 @@ static void vCallback_setMqtt(cmd* xCommand)
     char pcTmp[64] = {0};
     Argument arg;
     char** pcArgLst;
+    String str_args[3];
     do 
     {
         arg = cmd.getArg(u8Index);
@@ -490,6 +494,7 @@ static void vCallback_setMqtt(cmd* xCommand)
                 {
                     snprintf(pcTmp, 64, "Set mqtt.%s: %s\r\n", arg.getName().c_str(), arg.getValue().c_str());
                     APP_TRACE(pcTmp);
+                    str_args[i] = arg.getValue();
                     break;
                 }
                 pcArgLst++;
@@ -497,6 +502,14 @@ static void vCallback_setMqtt(cmd* xCommand)
         }
         u8Index++;
     } while (u8Index < cmd.countArgs());
+    bAppCfg_LockJson();
+    if (!str_args[0].isEmpty())
+    { jAppCfg_Config["MQTT"]["ADDR"] = str_args[0]; }
+    if (!str_args[1].isEmpty())
+    { jAppCfg_Config["MQTT"]["PORT"] = atoi(str_args[1].c_str()); }
+    if (!str_args[2].isEmpty())
+    { jAppCfg_Config["MQTT"]["KEEPALIVE"] = atoi(str_args[2].c_str()); }
+    bAppCfg_UnlockJson();
     APP_TRACE("\r\n>");
 }
 
