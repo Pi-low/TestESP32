@@ -45,7 +45,7 @@ typedef struct {
 static SemaphoreHandle_t xJsonMutex;
 const char CtcAppCfg_DefDeviceName[] = "DEVICE_00";
 const char CtcAppCfg_DefWifi[] = R"({"SSID":null,"PWD":null})";
-const char CtcAppCfg_DefMqtt[] = R"({"ADDR":null,"PORT":null,"CFG_TOPIC":"/lumiapp/config","CMD_TOPIC":"/lumiapp/cmd","KEEPALIVE":120})";
+const char CtcAppCfg_DefMqtt[] = R"({"ADDR":null,"PORT":null,"CFG_TOPIC":"/lumiapp/config","CMD_TOPIC":"/lumiapp/cmd","KEEPALIVE":60})";
 const char CtcAppCfg_DefPalettes[] = R"([{"NAME":"default","COLORS":["ffffff","ff0000"]}])";
 const char CtcAppCfg_DefProgArr[] = R"([{"ANIM":"glitter","DURATION":120},{"ANIM":"raindrops","DURATION":120}])";
 const char CtcAppCfg_DefWorkTimeSlot[] = R"([{"ON":"17:30:00","OFF":"22:00:00"},{"ON":"06:30:00","OFF":"08:00:00"}])";
@@ -305,7 +305,7 @@ eApp_RetVal eAppCfg_SetDefaultConfig(void)
         if (eRet < eRet_Ok)
         {
             char tcPrint[40];
-            snprintf(tcPrint, 40, "Set defaultConfig error: (%d)\r\n", eRet);
+            snprintf(tcPrint, 40, "Set defaultConfig error: (%d)", eRet);
             APP_TRACE(tcPrint);
         }
         else
@@ -314,6 +314,7 @@ eApp_RetVal eAppCfg_SetDefaultConfig(void)
         }
         pstParam++;
     }
+    APP_TRACE("\r\n");
     return eRet;
 }
 
@@ -403,7 +404,7 @@ eApp_RetVal eAppCfg_ResetParam(TstAppCfg_ParamObj *FpstParam)
             if (FpstParam->pvDefaultValue != NULL)
             {
                 JsonDocument jSub;
-                if ((deserializeJson(jSub, FpstParam->pvDefaultValue) != DeserializationError::Ok))
+                if ((deserializeJson(jSub, (const char*)FpstParam->pvDefaultValue) != DeserializationError::Ok))
                 { _MNG_RETURN(eRet_JsonError); }
                 else
                 { jAppCfg_Config[FpstParam->pcName] = jSub.as<JsonObject>();  }
