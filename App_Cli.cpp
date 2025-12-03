@@ -82,9 +82,13 @@ static void vCallback_error(cmd_error* xError);
 static Command xCommands[NB_COMMANDS];
 static char tcCLI_WriteBuffer[CLI_TX_BUFFER_SIZE];
 
-const char* CtcAppCli_argMqtt[3] = {
+const char* CtcAppCli_argMqtt[] = {
+    "id",
     "addr",
     "port",
+    "login",
+    "pwd",
+    "topic",
     "keepAlive"
 };
 
@@ -106,14 +110,18 @@ void vAppCli_init(void) {
     SET_MULTI(setWifi);
     SET_MULTI(setMqtt);
 
-    CMD_OBJ(set).addArg("deviceName");
+    CMD_OBJ(set).addArg("deviceName", nullptr);
 
-    CMD_OBJ(setWifi).addArg("ssid");
-    CMD_OBJ(setWifi).addArg("pwd");
+    CMD_OBJ(setWifi).addArg("ssid", nullptr);
+    CMD_OBJ(setWifi).addArg("pwd", nullptr);
 
-    CMD_OBJ(setMqtt).addArg("addr");
-    CMD_OBJ(setMqtt).addArg("port");
-    CMD_OBJ(setMqtt).addArg("keepAlive");
+    CMD_OBJ(setMqtt).addArg("id", nullptr);
+    CMD_OBJ(setMqtt).addArg("addr", nullptr);
+    CMD_OBJ(setMqtt).addArg("port", nullptr);
+    CMD_OBJ(setMqtt).addArg("login", nullptr);
+    CMD_OBJ(setMqtt).addArg("pwd", nullptr);
+    CMD_OBJ(setMqtt).addArg("topic", nullptr);
+    CMD_OBJ(setMqtt).addArg("keepAlive", nullptr);
 
     xCli.setErrorCallback(vCallback_error);
 
@@ -481,14 +489,14 @@ static void vCallback_setMqtt(cmd* xCommand)
     char pcTmp[64] = {0};
     Argument arg;
     char** pcArgLst;
-    String str_args[3];
+    String str_args[7];
     do 
     {
         arg = cmd.getArg(u8Index);
         if (arg.isSet())
         {
             pcArgLst = (char **)CtcAppCli_argMqtt;
-            for (uint8_t i = 0; i < 3; i++)
+            for (uint8_t i = 0; i < sizeof(CtcAppCli_argMqtt) / sizeof(CtcAppCli_argMqtt[0]); i++)
             {
                 if (arg.getName().operator==(*pcArgLst))
                 {
@@ -504,11 +512,19 @@ static void vCallback_setMqtt(cmd* xCommand)
     } while (u8Index < cmd.countArgs());
     bAppCfg_LockJson();
     if (!str_args[0].isEmpty())
-    { jAppCfg_Config["MQTT"]["ADDR"] = str_args[0]; }
+    { jAppCfg_Config["MQTT"]["ID"] = str_args[0]; }
     if (!str_args[1].isEmpty())
-    { jAppCfg_Config["MQTT"]["PORT"] = atoi(str_args[1].c_str()); }
+    { jAppCfg_Config["MQTT"]["ADDR"] = str_args[1]; }
     if (!str_args[2].isEmpty())
-    { jAppCfg_Config["MQTT"]["KEEPALIVE"] = atoi(str_args[2].c_str()); }
+    { jAppCfg_Config["MQTT"]["PORT"] = atoi(str_args[2].c_str()); }
+    if (!str_args[3].isEmpty())
+    { jAppCfg_Config["MQTT"]["LOGIN"] = str_args[3]; }
+    if (!str_args[4].isEmpty())
+    { jAppCfg_Config["MQTT"]["PWD"] = str_args[4]; }
+    if (!str_args[5].isEmpty())
+    { jAppCfg_Config["MQTT"]["GLOBAL_TOPIC"] = str_args[5]; }
+    if (!str_args[6].isEmpty())
+    { jAppCfg_Config["MQTT"]["KEEPALIVE"] = atoi(str_args[6].c_str()); }
     bAppCfg_UnlockJson();
     APP_TRACE("\r\n>");
 }

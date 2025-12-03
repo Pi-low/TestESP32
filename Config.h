@@ -17,12 +17,12 @@
 /*******************************************************************************
  *  GENERAL CONFIGURATION 
  ******************************************************************************/
-#define APP_TASKS       1 // use FreeRTOS
-#define APP_WIFI        1 // actiavate wifi tasking
-#define APP_FASTLED     1 // activate ledstrip management
-#define ESP_LED_PIN     8
-#define APP_PRINT       1
-
+#define APP_TASKS           1 // use FreeRTOS
+#define APP_WIFI            1 // actiavate wifi tasking
+#define APP_FASTLED         1 // activate ledstrip management
+#define ESP_LED_PIN         8
+#define APP_PRINT           1
+#define APP_ROOT_TOPIC      "/lumiapp"
 #define CONFIG_FILE_PATH    "/config.cfg"
 
 /*******************************************************************************
