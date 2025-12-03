@@ -20,6 +20,7 @@
 
 eApp_RetVal eAppWifi_init(void);
 void vAppWifi_GetWifiConfig(void);
+void vAppWifi_GetMqttConfig(void);
 
 #endif // APP_WIFI
 

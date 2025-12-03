@@ -41,18 +41,30 @@ typedef enum {
 typedef struct {
     const char* pcSsid;
     const char* pcPassword;
+    const char* pcHostName;
     uint8_t u8Available;
 } TstAppWifi_Config;
+
+typedef struct {
+    bool bAvailable;
+    const char* pcBroker;
+    uint16_t u16Port;
+    uint16_t u16KeepAlive;
+} TstAppWifi_MqttConfig;
 
 /*******************************************************************************
  *  Global variable
  ******************************************************************************/
+WiFiClient wifiClient;
+MqttClient mqttClient(wifiClient);
 static TstAppWifi_Config stAppWifi_Config;
 static TeAppWifi_State eAppWifi_State = WIFI_DISCONNECTED;
+static TstAppWifi_MqttConfig stAppWifi_MqttCfg = {false, nullptr, 0, 0};
 
 /*******************************************************************************
  *  Prototypes
  ******************************************************************************/
+static void vAppWifi_OnMqttMsg(int MsgSize);
 
 /*******************************************************************************
  *  Functions
@@ -68,6 +80,7 @@ eApp_RetVal eAppWifi_init(void)
     eApp_RetVal eRet = eRet_Ok;
     // Extraire SSID et mot de passe depuis le JSON
     vAppWifi_GetWifiConfig();
+    vAppWifi_GetMqttConfig();
 
 #if APP_TASKS
     xTaskCreate(vAppWifi_Task, WIFI_TASK, WIFI_TASK_HEAP, WIFI_TASK_PARAM, WIFI_TASK_PRIO, WIFI_TASK_HANDLE);
@@ -97,6 +110,12 @@ static void vAppWifi_Task(void *pvArg)
             if (stAppWifi_Config.u8Available)
             {
                 APP_TRACE("Connecting to WiFi...\r\n");
+                WiFi.mode(WIFI_STA);
+                if (stAppWifi_Config.pcHostName != nullptr)
+                {
+                    WiFi.setHostname(stAppWifi_Config.pcHostName);
+                    mqttClient.setId(stAppWifi_Config.pcHostName);
+                }
                 WiFi.begin(stAppWifi_Config.pcSsid, stAppWifi_Config.pcPassword);
                 eAppWifi_State = WIFI_CONNECTING;
             }
@@ -108,9 +127,19 @@ static void vAppWifi_Task(void *pvArg)
             {
                 eAppWifi_State = WIFI_CONNECTED;
                 APP_TRACE("WiFi connected !\r\n");
-                char ipMsg[32];
-                snprintf(ipMsg, sizeof(ipMsg), "IP address: %s\r\n", WiFi.localIP().toString().c_str());
-                APP_TRACE(ipMsg);
+                if (stAppWifi_MqttCfg.bAvailable)
+                {
+                    if (mqttClient.connect(stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port))
+                    {
+                        APP_TRACE("MQTT connected !\r\n");
+                        mqttClient.subscribe("test/topic");
+                        mqttClient.onMessage(vAppWifi_OnMqttMsg);
+                    }
+                    else
+                    {
+                        APP_TRACE("MQTT connection failed !\r\n");
+                    }
+                }
             }
             else
             {
@@ -128,10 +157,11 @@ static void vAppWifi_Task(void *pvArg)
                 }
                 eAppWifi_State = WIFI_DISCONNECTED;
             }
-            break;
+            break;  
 
         case WIFI_CONNECTED:
             // Vérification périodique de la connexion
+            mqttClient.poll();
             if (WiFi.status() != WL_CONNECTED)
             {
                 eAppWifi_State = WIFI_DISCONNECTED;
@@ -151,11 +181,25 @@ static void vAppWifi_Task(void *pvArg)
     }
 }
 
+void vAppWifi_OnMqttMsg(int MsgSize)
+{
+    static char tcBuffer[128];
+    APP_TRACE("MQTT Rx: ");
+    memset(tcBuffer, 0, 128);
+    if (mqttClient.available())
+    {
+        mqttClient.readBytes(tcBuffer, MIN(MsgSize, sizeof(tcBuffer) - 1));
+        APP_TRACE(tcBuffer);
+    }
+    APP_TRACE("\r\n");
+}
+
 void vAppWifi_GetWifiConfig(void)
 {
     bAppCfg_LockJson();
     const char *ssid = jAppCfg_Config["WIFI"]["SSID"];
     const char *pwd = jAppCfg_Config["WIFI"]["PWD"];
+    stAppWifi_Config.pcHostName = jAppCfg_Config["DEVICE_NAME"];
     if (ssid == nullptr || pwd == nullptr || strlen(ssid) == 0 || strlen(pwd) == 0)
     {
         stAppWifi_Config.u8Available = 0;
@@ -165,6 +209,26 @@ void vAppWifi_GetWifiConfig(void)
         stAppWifi_Config.u8Available = 1;
         stAppWifi_Config.pcSsid = ssid;
         stAppWifi_Config.pcPassword = pwd;
+    }
+    bAppCfg_UnlockJson();
+}
+
+void vAppWifi_GetMqttConfig(void)
+{
+    bAppCfg_LockJson();
+    const char *broker = jAppCfg_Config["MQTT"]["ADDR"];
+    uint16_t port = jAppCfg_Config["MQTT"]["PORT"];
+    uint16_t keepAlive = jAppCfg_Config["MQTT"]["KEEPALIVE"];
+    if (broker == nullptr || port == 0 || keepAlive == 0)
+    {
+        stAppWifi_MqttCfg.bAvailable = 0;
+    }
+    else
+    {
+        stAppWifi_MqttCfg.bAvailable = 1;
+        stAppWifi_MqttCfg.pcBroker = broker;
+        stAppWifi_MqttCfg.u16Port = port;
+        stAppWifi_MqttCfg.u16KeepAlive = keepAlive;
     }
     bAppCfg_UnlockJson();
 }
