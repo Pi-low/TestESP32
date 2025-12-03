@@ -19,7 +19,7 @@
 #include <WiFi.h>
 
 eApp_RetVal eAppWifi_init(void);
-void vappWifi_GetWifiConfig(void);
+void vAppWifi_GetWifiConfig(void);
 
 #endif // APP_WIFI
 

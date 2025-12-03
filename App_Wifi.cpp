@@ -10,11 +10,23 @@
  *  Includes
  ******************************************************************************/
 #include "App_Wifi.h"
+#include <ArduinoMqttClient.h>
 
 #if defined(APP_WIFI) && APP_WIFI
 /*******************************************************************************
  *  Types, nums, macros
  ******************************************************************************/
+#if APP_TASKS
+#define WIFI_TASK            "APP_WIFI"
+#define WIFI_TASK_HEAP       (configMINIMAL_STACK_SIZE*4)
+#define WIFI_TASK_PARAM      NULL
+#define WIFI_TASK_PRIO       2
+#define WIFI_TASK_HANDLE     NULL
+static void vAppWifi_Task(void *pvArg);
+#endif
+
+#define WIFI_ABORT_CONNECT 3
+
 #define _MNG_RETURN(x)                      eRet = x
 
 // Définition des états de la connexion WiFi
@@ -41,7 +53,6 @@ static TeAppWifi_State eAppWifi_State = WIFI_DISCONNECTED;
 /*******************************************************************************
  *  Prototypes
  ******************************************************************************/
-static void vAppWifi_Task(void *pvArg);
 
 /*******************************************************************************
  *  Functions
@@ -56,7 +67,11 @@ eApp_RetVal eAppWifi_init(void)
 {
     eApp_RetVal eRet = eRet_Ok;
     // Extraire SSID et mot de passe depuis le JSON
-    vappWifi_GetWifiConfig();
+    vAppWifi_GetWifiConfig();
+
+#if APP_TASKS
+    xTaskCreate(vAppWifi_Task, WIFI_TASK, WIFI_TASK_HEAP, WIFI_TASK_PARAM, WIFI_TASK_PRIO, WIFI_TASK_HANDLE);
+#endif
 
     return eRet;
 }
@@ -70,6 +85,7 @@ static void vAppWifi_Task(void *pvArg)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(WIFI_TASKING); // Vérification toutes les 5 secondes
+    uint8_t u8StopCounter = WIFI_ABORT_CONNECT;
 
     while (1)
     {
@@ -77,6 +93,7 @@ static void vAppWifi_Task(void *pvArg)
         {
         case WIFI_DISCONNECTED:
             // Tentative de connexion au WiFi
+            vAppWifi_GetWifiConfig();
             if (stAppWifi_Config.u8Available)
             {
                 APP_TRACE("Connecting to WiFi...\r\n");
@@ -99,6 +116,16 @@ static void vAppWifi_Task(void *pvArg)
             {
                 // Échec de connexion, retour à l'état déconnecté
                 APP_TRACE("Fail to connect, next attempt in 5000 ms...\r\n");
+                u8StopCounter--;
+                if (!u8StopCounter) {
+                    APP_TRACE("Abort operation, clear wifi settings...\r\n");
+                    bAppCfg_LockJson();
+                    jAppCfg_Config["WIFI"]["SSID"] = nullptr;
+                    jAppCfg_Config["WIFI"]["PWD"] = nullptr;
+                    stAppWifi_Config.u8Available = 0;
+                    bAppCfg_UnlockJson();
+                    u8StopCounter = WIFI_ABORT_CONNECT;
+                }
                 eAppWifi_State = WIFI_DISCONNECTED;
             }
             break;
@@ -124,16 +151,14 @@ static void vAppWifi_Task(void *pvArg)
     }
 }
 
-void vappWifi_GetWifiConfig(void)
+void vAppWifi_GetWifiConfig(void)
 {
     bAppCfg_LockJson();
     const char *ssid = jAppCfg_Config["WIFI"]["SSID"];
     const char *pwd = jAppCfg_Config["WIFI"]["PWD"];
-    bAppCfg_UnlockJson();
     if (ssid == nullptr || pwd == nullptr || strlen(ssid) == 0 || strlen(pwd) == 0)
     {
         stAppWifi_Config.u8Available = 0;
-        APP_TRACE("Wifi config unavailable\r\n");
     }
     else
     {
@@ -141,6 +166,7 @@ void vappWifi_GetWifiConfig(void)
         stAppWifi_Config.pcSsid = ssid;
         stAppWifi_Config.pcPassword = pwd;
     }
+    bAppCfg_UnlockJson();
 }
 
 #endif // APP_WIFI

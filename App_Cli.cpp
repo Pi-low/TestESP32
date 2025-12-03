@@ -27,7 +27,9 @@ static void vAppCli_Task(void* pvArg);
 
 #define GENERATE_CMD_ENUM(ENUM)         Cmd_##ENUM,
 #define CMD_OBJ(CMD)                    xCommands[Cmd_##CMD]
-#define SET_CALLBACK(CMD)               xCommands[Cmd_##CMD] = xCli.addBoundlessCommand(#CMD, vCallback_##CMD)
+#define SET_BOUNDLESS(CMD)              xCommands[Cmd_##CMD] = xCli.addBoundlessCmd(#CMD, vCallback_##CMD)
+#define SET_SINGLE(CMD)                 xCommands[Cmd_##CMD] = xCli.addSingleArgCmd(#CMD, vCallback_##CMD)
+#define SET_MULTI(CMD)                  xCommands[Cmd_##CMD] = xCli.addCmd(#CMD, vCallback_##CMD)
 
 #define FOREACH_CLI_CMD(PARAM)          \
     PARAM(on)                           \
@@ -43,11 +45,13 @@ static void vAppCli_Task(void* pvArg);
     PARAM(bpm)                          \
     PARAM(palette)                      \
     PARAM(addColor)                     \
-    PARAM(resetConf)                    \
-    PARAM(printConf)
+    PARAM(config)                       \
+    PARAM(set)                          \
+    PARAM(setWifi)                      \
+    PARAM(setMqtt)                      
 
 
-#define NB_COMMANDS 15
+#define NB_COMMANDS 17
 
 typedef enum {
     FOREACH_CLI_CMD(GENERATE_CMD_ENUM)
@@ -66,8 +70,10 @@ static void vCallback_offset(cmd* xCommand);
 static void vCallback_bpm(cmd* xCommand);
 static void vCallback_palette(cmd* xCommand);
 static void vCallback_addColor(cmd* xCommand);
-static void vCallback_resetConf(cmd* xCommand);
-static void vCallback_printConf(cmd* xCommand);
+static void vCallback_config(cmd* xCommand);
+static void vCallback_set(cmd* xCommand);
+static void vCallback_setWifi(cmd* xCommand);
+static void vCallback_setMqtt(cmd* xCommand);
 
 static void vAppCli_SendResponse(const char* pcCommandName, eApp_RetVal eRetval, const char* pcExtraString);
 static char* pcReturnValueToString(eApp_RetVal eRet);
@@ -76,21 +82,39 @@ static void vCallback_error(cmd_error* xError);
 static Command xCommands[NB_COMMANDS];
 static char tcCLI_WriteBuffer[CLI_TX_BUFFER_SIZE];
 
+const char* CtcAppCli_argMqtt[3] = {
+    "addr",
+    "port",
+    "keepAlive"
+};
+
 void vAppCli_init(void) {
-    SET_CALLBACK(on);
-    SET_CALLBACK(off);
-    SET_CALLBACK(brightness);
-    SET_CALLBACK(anim);
-    SET_CALLBACK(speed);
-    SET_CALLBACK(period);
-    SET_CALLBACK(fade);
-    SET_CALLBACK(direction);
-    SET_CALLBACK(offset);
-    SET_CALLBACK(bpm);
-    SET_CALLBACK(palette);
-    SET_CALLBACK(addColor);
-    SET_CALLBACK(resetConf);
-    SET_CALLBACK(printConf);
+    SET_BOUNDLESS(on);
+    SET_BOUNDLESS(off);
+    SET_BOUNDLESS(brightness);
+    SET_BOUNDLESS(anim);
+    SET_BOUNDLESS(speed);
+    SET_BOUNDLESS(period);
+    SET_BOUNDLESS(fade);
+    SET_BOUNDLESS(direction);
+    SET_BOUNDLESS(offset);
+    SET_BOUNDLESS(bpm);
+    SET_BOUNDLESS(palette);
+    SET_BOUNDLESS(addColor);
+    SET_SINGLE(config);
+    SET_MULTI(set);
+    SET_MULTI(setWifi);
+    SET_MULTI(setMqtt);
+
+    CMD_OBJ(set).addArg("deviceName");
+
+    CMD_OBJ(setWifi).addArg("ssid");
+    CMD_OBJ(setWifi).addArg("pwd");
+
+    CMD_OBJ(setMqtt).addArg("addr");
+    CMD_OBJ(setMqtt).addArg("port");
+    CMD_OBJ(setMqtt).addArg("keepAlive");
+
     xCli.setErrorCallback(vCallback_error);
 
     xTaskCreate(vAppCli_Task, CLI_TASK, CLI_TASK_HEAP, CLI_TASK_PARAM, CLI_TASK_PRIO, CLI_TASK_HANDLE);
@@ -359,39 +383,121 @@ static char* pcReturnValueToString(eApp_RetVal eRet) {
             return (char*)"Bad parameter";
         case eRet_InternalError:
             return (char*)"Internal error";
+        case eRet_JsonError:
+            return (char*)"Json error";
         default:
             return (char*)"Unknown";
     }
 }
 
-static void vCallback_resetConf(cmd* xCommand) {
-    APP_TRACE("Resetting config file...\r\n");
-    remove(CONFIG_FILE_PATH);
-    if (eAppCfg_SetDefaultConfig() < eRet_Ok)
+static void vCallback_config(cmd* xCommand)
+{
+    Command cmd(xCommand);
+    Argument arg = cmd.getArgument(0);
+    eApp_RetVal eRet = eRet_Ok;
+
+    if (arg.getValue().operator==("reset"))
     {
-        APP_TRACE("Could not set default config !\r\n");
+        APP_TRACE("Resetting config file...\r\n");
+        remove(CONFIG_FILE_PATH);
+        if (eAppCfg_SetDefaultConfig() < eRet_Ok)
+        {
+            APP_TRACE("Could not set default config !");
+        }
+        else
+        {
+            eAppCfg_SaveConfig(CONFIG_FILE_PATH);
+        }
     }
-    else
+    else if (arg.getValue().operator==("print"))
+    {
+        uint16_t u16PrettyCfg_Size = measureJsonPretty(jAppCfg_Config);
+        char *pcPrettyConfig = (char *)pvPortMalloc(u16PrettyCfg_Size);
+        APP_TRACE("Print pretty config:\r\n");
+        if (pcPrettyConfig)
+        {
+            serializeJsonPretty(jAppCfg_Config, pcPrettyConfig, u16PrettyCfg_Size);
+            vAppPrintUtils_Print(pcPrettyConfig, u16PrettyCfg_Size);
+            vPortFree(pcPrettyConfig);
+        }
+        else
+        {
+            APP_TRACE("Malloc error !!");
+        }
+    }
+    else if (arg.getValue().operator==("save"))
     {
         eAppCfg_SaveConfig(CONFIG_FILE_PATH);
     }
-}
-
-static void vCallback_printConf(cmd* xCommand) {
-    uint16_t u16PrettyCfg_Size = measureJsonPretty(jAppCfg_Config);
-    char* pcPrettyConfig = (char*) pvPortMalloc(u16PrettyCfg_Size);
-    APP_TRACE("Print pretty config:\r\n");
-    if (pcPrettyConfig)
-    {
-        serializeJsonPretty(jAppCfg_Config, pcPrettyConfig, u16PrettyCfg_Size);
-        vAppPrintUtils_Print(pcPrettyConfig, u16PrettyCfg_Size);
-        vPortFree(pcPrettyConfig);
-        APP_TRACE("\r\n");
-    }
     else
     {
-        APP_TRACE("Malloc error !!\r\n");
+        APP_TRACE("Unknown argument!!");
     }
+    APP_TRACE("\r\n>");
+}
+
+static void vCallback_set(cmd* xCommand)
+{
+    Command cmd(xCommand);
+    Argument arg_deviceName = cmd.getArg("deviceName");
+    if (arg_deviceName.isSet())
+    {
+        char pcTmp[64] = {0};
+        snprintf(pcTmp, 64, "Set deviceName: %s\r\n>", arg_deviceName.getValue().c_str());
+        APP_TRACE(pcTmp);
+    }
+}
+
+static void vCallback_setWifi(cmd* xCommand)
+{
+    Command cmd(xCommand);
+    Argument arg_ssid = cmd.getArg("ssid");
+    Argument arg_pwd = cmd.getArg("pwd");
+    char pcTmp[64] = {0};
+    bAppCfg_LockJson();
+    if (arg_ssid.isSet())
+    {
+        jAppCfg_Config["WIFI"]["SSID"] = arg_ssid.getValue();
+        snprintf(pcTmp, 64, "Set wifi.ssid: %s\r\n", arg_ssid.getValue().c_str());
+        APP_TRACE(pcTmp);
+    }
+    if (arg_pwd.isSet())
+    {
+        jAppCfg_Config["WIFI"]["PWD"] = arg_pwd.getValue();
+        snprintf(pcTmp, 64, "Set wifi.pwd: %s\r\n", arg_pwd.getValue().c_str());
+        APP_TRACE(pcTmp);
+    }
+    bAppCfg_UnlockJson();
+    APP_TRACE("\r\n>");
+}
+
+static void vCallback_setMqtt(cmd* xCommand)
+{
+    Command cmd(xCommand);
+    uint8_t u8Index = 0;
+    char pcTmp[64] = {0};
+    Argument arg;
+    char** pcArgLst;
+    do 
+    {
+        arg = cmd.getArg(u8Index);
+        if (arg.isSet())
+        {
+            pcArgLst = (char **)CtcAppCli_argMqtt;
+            for (uint8_t i = 0; i < 3; i++)
+            {
+                if (arg.getName().operator==(*pcArgLst))
+                {
+                    snprintf(pcTmp, 64, "Set mqtt.%s: %s\r\n", arg.getName().c_str(), arg.getValue().c_str());
+                    APP_TRACE(pcTmp);
+                    break;
+                }
+                pcArgLst++;
+            }
+        }
+        u8Index++;
+    } while (u8Index < cmd.countArgs());
+    APP_TRACE("\r\n>");
 }
 
 static void vCallback_error(cmd_error* xError) {
