@@ -10,7 +10,7 @@
  *  Includes
  ******************************************************************************/
 #include "App_Wifi.h"
-#include <ArduinoMqttClient.h>
+#include "ESP32MQTTClient.h"
 
 #if defined(APP_WIFI) && APP_WIFI
 /*******************************************************************************
@@ -25,7 +25,9 @@
 static void vAppWifi_Task(void *pvArg);
 #endif
 
-#define WIFI_ABORT_CONNECT 3
+#define MAX_RETRY 3
+#define LOCAL_PRINT_BUFFER  256
+#define CONNECT_TIMEOUT     5000
 
 #define _MNG_RETURN(x)                      eRet = x
 
@@ -36,18 +38,23 @@ typedef enum {
     WIFI_CONNECTED,
 } TeAppWifi_State;
 
-
 // Structure pour la configuration WiFi
 typedef struct {
+    bool bAvailable;
+    TickType_t xTimeout;
     const char* pcSsid;
     const char* pcPassword;
     const char* pcHostName;
-    uint8_t u8Available;
 } TstAppWifi_Config;
 
 typedef struct {
     bool bAvailable;
+    TickType_t xTimeout;
     const char* pcBroker;
+    const char* pcId;
+    const char* pcLogin;
+    const char* pcPwd;
+    const char* pcTopic;
     uint16_t u16Port;
     uint16_t u16KeepAlive;
 } TstAppWifi_MqttConfig;
@@ -55,16 +62,18 @@ typedef struct {
 /*******************************************************************************
  *  Global variable
  ******************************************************************************/
-WiFiClient wifiClient;
-MqttClient mqttClient(wifiClient);
+ESP32MQTTClient mqttClient;
+static bAppWifi_DisableWifi;
+static bAppWifi_MqttInit;
 static TstAppWifi_Config stAppWifi_Config;
 static TeAppWifi_State eAppWifi_State = WIFI_DISCONNECTED;
-static TstAppWifi_MqttConfig stAppWifi_MqttCfg = {false, nullptr, 0, 0};
+static TstAppWifi_MqttConfig stAppWifi_MqttCfg;
 
 /*******************************************************************************
  *  Prototypes
  ******************************************************************************/
-static void vAppWifi_OnMqttMsg(int MsgSize);
+void vAppWifi_OnWifiConnect(void);
+void MqttCallback_Main(const std::string topic, const std::string payload);
 
 /*******************************************************************************
  *  Functions
@@ -78,10 +87,10 @@ static void vAppWifi_OnMqttMsg(int MsgSize);
 eApp_RetVal eAppWifi_init(void)
 {
     eApp_RetVal eRet = eRet_Ok;
-    // Extraire SSID et mot de passe depuis le JSON
-    vAppWifi_GetWifiConfig();
-    vAppWifi_GetMqttConfig();
-
+    bAppWifi_DisableWifi = false;
+    bAppWifi_MqttInit = false;
+    stAppWifi_Config.bAvailable = false;
+    stAppWifi_MqttCfg.bAvailable = false;
 #if APP_TASKS
     xTaskCreate(vAppWifi_Task, WIFI_TASK, WIFI_TASK_HEAP, WIFI_TASK_PARAM, WIFI_TASK_PRIO, WIFI_TASK_HANDLE);
 #endif
@@ -99,69 +108,47 @@ static void vAppWifi_Task(void *pvArg)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(WIFI_TASKING); // Vérification toutes les 5 secondes
     uint8_t u8StopCounter = WIFI_ABORT_CONNECT;
-
+    char* pcPrintBuffer[LOCAL_PRINT_BUFFER];
     while (1)
     {
         switch (eAppWifi_State)
         {
         case WIFI_DISCONNECTED:
-            // Tentative de connexion au WiFi
-            vAppWifi_GetWifiConfig();
-            if (stAppWifi_Config.u8Available)
+            if (bAppWifi_SyncWifiConfig() && !bAppWifi_DisableWifi)
             {
-                APP_TRACE("Connecting to WiFi...\r\n");
+                snprintf(pcPrintBuffer, LOCAL_PRINT_BUFFER, "Connectig to %d", stAppWifi_Config.pcSsid);
+                APP_TRACE(pcPrintBuffer);
                 WiFi.mode(WIFI_STA);
                 if (stAppWifi_Config.pcHostName != nullptr)
-                {
-                    WiFi.setHostname(stAppWifi_Config.pcHostName);
-                    mqttClient.setId(stAppWifi_Config.pcHostName);
-                }
+                { WiFi.setHostname(stAppWifi_Config.pcHostName); }
+
                 WiFi.begin(stAppWifi_Config.pcSsid, stAppWifi_Config.pcPassword);
+                stAppWifi_Config.xTimeout = xTaskGetTickCount() + CONNECT_TIMEOUT;
                 eAppWifi_State = WIFI_CONNECTING;
             }
             break;
 
         case WIFI_CONNECTING:
-            // Vérification de l'état de la connexion
             if (WiFi.status() == WL_CONNECTED)
             {
                 eAppWifi_State = WIFI_CONNECTED;
-                APP_TRACE("WiFi connected !\r\n");
-                if (stAppWifi_MqttCfg.bAvailable)
-                {
-                    if (mqttClient.connect(stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port))
-                    {
-                        APP_TRACE("MQTT connected !\r\n");
-                        mqttClient.subscribe("test/topic");
-                        mqttClient.onMessage(vAppWifi_OnMqttMsg);
-                    }
-                    else
-                    {
-                        APP_TRACE("MQTT connection failed !\r\n");
-                    }
-                }
+                APP_TRACE("\r\nWiFi connected !\r\n");
+                vAppWifi_OnWifiConnect();
+            }
+            else if (stAppWifi_Config.xTimeout > xTaskGetTickCount())
+            {   // connexion ongoing ...
+                APP_TRACE(".");
             }
             else
             {
-                // Échec de connexion, retour à l'état déconnecté
-                APP_TRACE("Fail to connect, next attempt in 5000 ms...\r\n");
-                u8StopCounter--;
-                if (!u8StopCounter) {
-                    APP_TRACE("Abort operation, clear wifi settings...\r\n");
-                    bAppCfg_LockJson();
-                    jAppCfg_Config["WIFI"]["SSID"] = nullptr;
-                    jAppCfg_Config["WIFI"]["PWD"] = nullptr;
-                    stAppWifi_Config.u8Available = 0;
-                    bAppCfg_UnlockJson();
-                    u8StopCounter = WIFI_ABORT_CONNECT;
-                }
+                APP_TRACE("\r\nConnexion timeout !...\r\n");
+                bAppWifi_DisableWifi = true;
                 eAppWifi_State = WIFI_DISCONNECTED;
             }
             break;  
 
         case WIFI_CONNECTED:
             // Vérification périodique de la connexion
-            mqttClient.poll();
             if (WiFi.status() != WL_CONNECTED)
             {
                 eAppWifi_State = WIFI_DISCONNECTED;
@@ -175,62 +162,86 @@ static void vAppWifi_Task(void *pvArg)
             APP_TRACE("Unknown WiFi state\r\n");
             break;
         }
-
-        // Synchronisation avec la période
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
 }
 
-void vAppWifi_OnMqttMsg(int MsgSize)
+void vAppWifi_OnWifiConnect(void)
 {
-    static char tcBuffer[128];
-    APP_TRACE("MQTT Rx: ");
-    memset(tcBuffer, 0, 128);
-    if (mqttClient.available())
+    if (!bAppWifi_MqttInit && bAppWifi_SyncMqttConfig())
     {
-        mqttClient.readBytes(tcBuffer, MIN(MsgSize, sizeof(tcBuffer) - 1));
-        APP_TRACE(tcBuffer);
+        bAppWifi_MqttInit = true;
+        if (stAppWifi_Config.pcHostName != nullptr)
+        {
+            mqttClient.setMqttClientName(stAppWifi_Config.pcHostName);
+        }
+        mqttClient.setURL(stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port, stAppWifi_MqttCfg.pcLogin, stAppWifi_MqttCfg.pcPwd);
+        mqttClient.loopStart();
     }
-    APP_TRACE("\r\n");
 }
 
-void vAppWifi_GetWifiConfig(void)
+void MqttCallback_Main(const std::string topic, const std::string payload)
+{
+    char tcBuffer[256];
+    snprintf(tcBuffer, 256, "Mqtt rx from \"%s\" -> %s\r\n", topic.c_str(), payload.c_str());
+    APP_TRACE(tcBuffer);
+}
+
+void onMqttConnect(esp_mqtt_client_handle_t client)
+{
+    if (mqttClient.isMyTurn(client))
+    {
+        mqttClient.subscribe(std::string(APP_ROOT_TOPIC) + std::string(stAppWifi_MqttCfg.pcTopic), MqttCallback_Main);
+    }
+}
+
+bool bAppWifi_SyncWifiConfig(void)
 {
     bAppCfg_LockJson();
     const char *ssid = jAppCfg_Config["WIFI"]["SSID"];
     const char *pwd = jAppCfg_Config["WIFI"]["PWD"];
     stAppWifi_Config.pcHostName = jAppCfg_Config["DEVICE_NAME"];
+    bAppCfg_UnlockJson();
     if (ssid == nullptr || pwd == nullptr || strlen(ssid) == 0 || strlen(pwd) == 0)
-    {
-        stAppWifi_Config.u8Available = 0;
+    {   // minimal valid configuration
+        stAppWifi_Config.bAvailable = false;
     }
     else
     {
-        stAppWifi_Config.u8Available = 1;
+        stAppWifi_Config.bAvailable = true;
         stAppWifi_Config.pcSsid = ssid;
         stAppWifi_Config.pcPassword = pwd;
     }
-    bAppCfg_UnlockJson();
+    return stAppWifi_Config.bAvailable;
 }
 
-void vAppWifi_GetMqttConfig(void)
+bool bAppWifi_SyncMqttConfig(void)
 {
     bAppCfg_LockJson();
-    const char *broker = jAppCfg_Config["MQTT"]["ADDR"];
-    uint16_t port = jAppCfg_Config["MQTT"]["PORT"];
-    uint16_t keepAlive = jAppCfg_Config["MQTT"]["KEEPALIVE"];
-    if (broker == nullptr || port == 0 || keepAlive == 0)
-    {
-        stAppWifi_MqttCfg.bAvailable = 0;
+    const char *pcBroker =  jAppCfg_Config["MQTT"]["ADDR"];
+    const char *pcId =      jAppCfg_Config["MQTT"]["ID"];
+    const char *pcLogin =   jAppCfg_Config["MQTT"]["LOGIN"];
+    const char *pcPwd =     jAppCfg_Config["MQTT"]["PWD"];
+    const char *pcTopic =   jAppCfg_Config["MQTT"]["GLOBAL_TOPIC"];
+    uint16_t u16port =      jAppCfg_Config["MQTT"]["PORT"];
+    uint16_t u16keepAlive = jAppCfg_Config["MQTT"]["KEEPALIVE"];
+    bAppCfg_UnlockJson();
+    if (pcBroker == nullptr || !strlen(pcBroker) || !u16port)
+    {   // minimal valid configuration
+        stAppWifi_MqttCfg.bAvailable = false;
     }
     else
     {
-        stAppWifi_MqttCfg.bAvailable = 1;
-        stAppWifi_MqttCfg.pcBroker = broker;
-        stAppWifi_MqttCfg.u16Port = port;
-        stAppWifi_MqttCfg.u16KeepAlive = keepAlive;
+        stAppWifi_MqttCfg.bAvailable = true;
+        stAppWifi_MqttCfg.pcId = pcId;
+        stAppWifi_MqttCfg.pcBroker = pcBroker;
+        stAppWifi_MqttCfg.pcLogin = pcLogin;
+        stAppWifi_MqttCfg.pcPwd = pcPwd;
+        stAppWifi_MqttCfg.pcTopic = pcTopic;
+        stAppWifi_MqttCfg.u16Port = u16port;
+        stAppWifi_MqttCfg.u16KeepAlive = u16KeepAlive;
     }
-    bAppCfg_UnlockJson();
+    return stAppWifi_MqttCfg.bAvailable;
 }
 
 #endif // APP_WIFI
