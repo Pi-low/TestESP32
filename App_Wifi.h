@@ -14,13 +14,13 @@
 
 #if defined(APP_WIFI) && APP_WIFI
 
-#define WIFI_TASKING (5000)
+#define WIFI_TASKING 1000
 
 #include <WiFi.h>
 
 eApp_RetVal eAppWifi_init(void);
-void vAppWifi_GetWifiConfig(void);
-void vAppWifi_GetMqttConfig(void);
+bool bAppWifi_SyncWifiConfig(void);
+bool bAppWifi_SyncMqttConfig(void);
 
 #endif // APP_WIFI
 
