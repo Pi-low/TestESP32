@@ -45,7 +45,7 @@ typedef struct {
 static SemaphoreHandle_t xJsonMutex;
 const char CtcAppCfg_DefDeviceName[] = "DEVICE_00";
 const char CtcAppCfg_DefWifi[] = R"({"SSID":null,"PWD":null})";
-const char CtcAppCfg_DefMqtt[] = R"({"ID":null,"ADDR":null,"PORT":null,"LOGIN":null,"PWD":null,"GLOBAL_TOPIC":"/global","KEEPALIVE":60})";
+const char CtcAppCfg_DefMqtt[] = R"({"ADDR":null,"PORT":null,"LOGIN":null,"PWD":null,"GLOBAL_TOPIC":"/global","KEEPALIVE":60})";
 const char CtcAppCfg_DefPalettes[] = R"([{"NAME":"default","COLORS":["ffffff","ff0000"]}])";
 const char CtcAppCfg_DefProgArr[] = R"([{"ANIM":"glitter","DURATION":120}])";
 const char CtcAppCfg_DefWorkTimeSlot[] = R"([{"ON":"17:30:00","OFF":"22:00:00"},{"ON":"06:30:00","OFF":"08:00:00"}])";
