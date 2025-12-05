@@ -63,8 +63,8 @@ typedef struct {
  *  Global variable
  ******************************************************************************/
 ESP32MQTTClient mqttClient;
-static bAppWifi_DisableWifi;
-static bAppWifi_MqttInit;
+static bool bAppWifi_DisableWifi;
+static bool bAppWifi_MqttInit;
 static TstAppWifi_Config stAppWifi_Config;
 static TeAppWifi_State eAppWifi_State = WIFI_DISCONNECTED;
 static TstAppWifi_MqttConfig stAppWifi_MqttCfg;
@@ -107,8 +107,7 @@ static void vAppWifi_Task(void *pvArg)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(WIFI_TASKING); // Vérification toutes les 5 secondes
-    uint8_t u8StopCounter = WIFI_ABORT_CONNECT;
-    char* pcPrintBuffer[LOCAL_PRINT_BUFFER];
+    char pcPrintBuffer[LOCAL_PRINT_BUFFER];
     while (1)
     {
         switch (eAppWifi_State)
@@ -195,6 +194,11 @@ void onMqttConnect(esp_mqtt_client_handle_t client)
     }
 }
 
+void handleMQTT(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+  auto *event = static_cast<esp_mqtt_event_handle_t>(event_data);
+  mqttClient.onEventCallback(event);
+}
+
 bool bAppWifi_SyncWifiConfig(void)
 {
     bAppCfg_LockJson();
@@ -239,7 +243,7 @@ bool bAppWifi_SyncMqttConfig(void)
         stAppWifi_MqttCfg.pcPwd = pcPwd;
         stAppWifi_MqttCfg.pcTopic = pcTopic;
         stAppWifi_MqttCfg.u16Port = u16port;
-        stAppWifi_MqttCfg.u16KeepAlive = u16KeepAlive;
+        stAppWifi_MqttCfg.u16KeepAlive = u16keepAlive;
     }
     return stAppWifi_MqttCfg.bAvailable;
 }
