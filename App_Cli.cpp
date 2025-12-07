@@ -92,6 +92,11 @@ const char* CtcAppCli_argMqtt[] = {
     "keepAlive"
 };
 
+const char *CtcAppCli_argSet[] = {
+    "deviceName",
+    "strips"
+};
+
 void vAppCli_init(void) {
     SET_BOUNDLESS(on);
     SET_BOUNDLESS(off);
@@ -111,6 +116,8 @@ void vAppCli_init(void) {
     SET_MULTI(setMqtt);
 
     CMD_OBJ(set).addArg("deviceName", nullptr);
+    CMD_OBJ(set).addArg("strips", nullptr);
+    
 
     CMD_OBJ(setWifi).addArg("ssid", nullptr);
     CMD_OBJ(setWifi).addArg("pwd", nullptr);
@@ -447,15 +454,31 @@ static void vCallback_config(cmd* xCommand)
 static void vCallback_set(cmd* xCommand)
 {
     Command cmd(xCommand);
-    Argument arg_deviceName = cmd.getArg("deviceName");
-    if (arg_deviceName.isSet())
+    Argument arg;
+    char **pcArgList = (char**)CtcAppCli_argSet;
+    char pcTmp[128] = {0};
+
+    for (uint8_t i = 0; i < (sizeof(CtcAppCli_argSet) / sizeof(CtcAppCli_argSet[0])); i++)
     {
-        char pcTmp[64] = {0};
-        snprintf(pcTmp, 64, "Set deviceName: %s\r\n>", arg_deviceName.getValue().c_str());
-        bAppCfg_LockJson();
-        jAppCfg_Config["DEVICE_NAME"] = arg_deviceName.getValue();
-        bAppCfg_UnlockJson();
-        APP_TRACE(pcTmp);
+        arg = cmd.getArg(*pcArgList);
+        if (arg.isSet())
+        {
+            snprintf(pcTmp, 128, "%s = %s\r\n", *pcArgList, arg.getValue().c_str());
+            APP_TRACE(pcTmp);
+            switch (i)
+            {
+            case 0: // deviceName
+                bAppCfg_LockJson();
+                jAppCfg_Config["DEVICE_NAME"] = arg.getValue();
+                bAppCfg_UnlockJson();
+                break;
+
+            case 1: //strips
+                eAppCfg_SetStrips(arg.getValue().c_str());
+            break;
+            }
+        }
+        pcArgList++;
     }
 }
 

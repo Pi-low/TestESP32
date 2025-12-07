@@ -81,7 +81,7 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         TYPE_JSON_STRING,
         0,
         TYPE_JSON_NULL,
-        NULL,
+        nullptr,
         0
     },
     {
@@ -89,7 +89,7 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         TYPE_JSON_ARRAY,
         0,
         TYPE_JSON_NUMBER,
-        NULL,
+        nullptr,
         0
     },
     {
@@ -121,7 +121,7 @@ const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
         TYPE_JSON_OBJECT,
         0,
         TYPE_JSON_NULL,
-        NULL,
+        nullptr,
         0
     }
 };
@@ -192,7 +192,7 @@ eApp_RetVal eAppConfig_init(void)
 bool bAppCfg_LockJson(void)
 {
     bool bRet = false;
-    if (xJsonMutex != NULL)
+    if (xJsonMutex != nullptr)
     {
         bRet = xSemaphoreTake(xJsonMutex, portMAX_DELAY);
     }
@@ -207,7 +207,7 @@ bool bAppCfg_LockJson(void)
 bool bAppCfg_UnlockJson(void)
 {
     bool bRet = false;
-    if (xJsonMutex != NULL)
+    if (xJsonMutex != nullptr)
     {
         bRet = xSemaphoreGive(xJsonMutex);
     }
@@ -256,7 +256,7 @@ eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath)
 {
     eApp_RetVal eRet = eRet_Ok;
 
-    if (pcToFilePath == NULL)
+    if (pcToFilePath == nullptr)
     {
         _MNG_RETURN(eRet_InternalError);
     }
@@ -351,7 +351,7 @@ eApp_RetVal eAppCfg_ResetParamKey(const char* pcObjectKey)
 eApp_RetVal eAppCfg_ResetParam(TstAppCfg_ParamObj *FpstParam)
 {
     eApp_RetVal eRet = eRet_Ok;
-    if (FpstParam == NULL)
+    if (FpstParam == nullptr)
     { _MNG_RETURN(eRet_InternalError); }
     else if (bAppCfg_LockJson())
     {
@@ -362,12 +362,12 @@ eApp_RetVal eAppCfg_ResetParam(TstAppCfg_ParamObj *FpstParam)
             break;
 
         case TYPE_JSON_STRING:
-            jAppCfg_Config[FpstParam->pcName] = (FpstParam->pvDefaultValue != NULL) ? (const char *)FpstParam->pvDefaultValue : nullptr;
+            jAppCfg_Config[FpstParam->pcName] = (FpstParam->pvDefaultValue != nullptr) ? (const char *)FpstParam->pvDefaultValue : nullptr;
             break;
 
         case TYPE_JSON_ARRAY:
         {
-            if ((FpstParam->pvDefaultValue != NULL) || FpstParam->u8ArraySize)
+            if ((FpstParam->pvDefaultValue != nullptr) || FpstParam->u8ArraySize)
             {
                 switch (FpstParam->eArrayType)
                 {
@@ -401,7 +401,7 @@ eApp_RetVal eAppCfg_ResetParam(TstAppCfg_ParamObj *FpstParam)
 
         case TYPE_JSON_OBJECT:
         {
-            if (FpstParam->pvDefaultValue != NULL)
+            if (FpstParam->pvDefaultValue != nullptr)
             {
                 JsonDocument jSub;
                 if ((deserializeJson(jSub, (const char*)FpstParam->pvDefaultValue) != DeserializationError::Ok))
@@ -423,10 +423,40 @@ eApp_RetVal eAppCfg_ResetParam(TstAppCfg_ParamObj *FpstParam)
     return eRet;
 }
 
+eApp_RetVal eAppCfg_SetStrips(const char* pcCfgFromCli)
+{
+    eApp_RetVal eRet = eRet_Ok;
+    char tcPrint[32];
+    uint8_t tu8StripAssembly[20] = {0};
+    uint8_t *pu8Tmp = tu8StripAssembly;
+    uint8_t u8cnt = 0;
+    char *pcCfg = (char*) pcCfgFromCli;
+    do
+    {
+        *pu8Tmp = atoi(pcCfg);
+        pcCfg = strchr(pcCfg, ',');
+        pcCfg += (pcCfg != nullptr) ? 1 : 0;
+        if (*pu8Tmp != 0)
+        {
+            pu8Tmp++;
+            u8cnt++;
+        }
+        else
+        { break; }
+    } while (pcCfg);
+    snprintf(tcPrint, 32, "found %u substrips\r\n", u8cnt);
+    APP_TRACE(tcPrint);
+    bAppCfg_LockJson();
+    vAppCfg_AddArrayToObject(jAppCfg_Config, "DEVICE_SUBSTRIPS", tu8StripAssembly, u8cnt);
+    bAppCfg_UnlockJson();
+    
+    return eRet;
+}
+
 template <class Y, class T>
 static void vAppCfg_AddArrayToObject(Y &doc, const char *Childstring, T pValue, uint8_t u8ArraySize)
 {
-    if ((u8ArraySize >= 0) && (pValue != NULL))
+    if ((u8ArraySize >= 0) && (pValue != nullptr))
     {
         auto jsonItem = doc[Childstring].template to<JsonArray>();
 

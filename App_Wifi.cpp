@@ -74,7 +74,8 @@ const char* CAcert = nullptr;
  *  Prototypes
  ******************************************************************************/
 void vAppWifi_OnWifiConnect(void);
-void MqttCallback_Main(const std::string topic, const std::string payload);
+void MqttCallback_Main(const std::string payload);
+void MqttCallback_Device(const std::string payload);
 
 
 /*******************************************************************************
@@ -193,10 +194,17 @@ void vAppWifi_OnWifiConnect(void)
     }
 }
 
-void MqttCallback_Main(const std::string topic, const std::string payload)
+void MqttCallback_Main(const std::string payload)
 {
     char tcBuffer[256];
-    snprintf(tcBuffer, 256, "Mqtt rx from \"%s\" -> %s\r\n", topic.c_str(), payload.c_str());
+    snprintf(tcBuffer, 256, "Mqtt rx from \"/lumiapp\" -> %s\r\n", payload.c_str());
+    APP_TRACE(tcBuffer);
+}
+
+void MqttCallback_Device(const std::string payload)
+{
+    char tcBuffer[256];
+    snprintf(tcBuffer, 256, "Mqtt rx from \"/lumiapp/%s\" -> %s\r\n", stAppWifi_Config.pcHostName, payload.c_str());
     APP_TRACE(tcBuffer);
 }
 
@@ -212,7 +220,7 @@ void onMqttConnect(esp_mqtt_client_handle_t client)
         {
             mqttClient.publish(std::string(APP_ROOT_TOPIC), "{\"CONNECT\":\"" + std::string(stAppWifi_Config.pcHostName) + "\"}");
         }
-        mqttClient.subscribe(std::string(APP_ROOT_TOPIC) + std::string(stAppWifi_Config.pcHostName), MqttCallback_Main);
+        mqttClient.subscribe(std::string(APP_ROOT_TOPIC) + "/" + std::string(stAppWifi_Config.pcHostName), MqttCallback_Device);
     }
 }
 

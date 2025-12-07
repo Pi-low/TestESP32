@@ -45,6 +45,7 @@ eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath);
 eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath);
 eApp_RetVal eAppCfg_SetDefaultConfig(void);
 eApp_RetVal eAppCfg_ResetParamKey(const char* pcObjectKey);
+eApp_RetVal eAppCfg_SetStrips(const char* pcCfgFromCli);
 bool bAppCfg_LockJson(void);
 bool bAppCfg_UnlockJson(void);
 
