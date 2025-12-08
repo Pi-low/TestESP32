@@ -118,7 +118,7 @@ static void vAppWifi_Task(void *pvArg)
         case WIFI_DISCONNECTED:
             if (bAppWifi_SyncWifiConfig() && !bAppWifi_DisableWifi)
             {
-                snprintf(pcPrintBuffer, LOCAL_PRINT_BUFFER, "Connectig to %s", stAppWifi_Config.pcSsid);
+                snprintf(pcPrintBuffer, LOCAL_PRINT_BUFFER, "[AppWifi] Connectig to %s", stAppWifi_Config.pcSsid);
                 APP_TRACE(pcPrintBuffer);
                 WiFi.mode(WIFI_STA);
                 if (stAppWifi_Config.pcHostName != nullptr)
@@ -134,7 +134,7 @@ static void vAppWifi_Task(void *pvArg)
             if (WiFi.status() == WL_CONNECTED)
             {
                 eAppWifi_State = WIFI_CONNECTED;
-                APP_TRACE("\r\nWiFi connected !\r\n");
+                APP_TRACE("\r\n[AppWifi] WiFi connected !\r\n");
                 vAppWifi_OnWifiConnect();
             }
             else if (stAppWifi_Config.xTimeout > xTaskGetTickCount())
@@ -143,7 +143,7 @@ static void vAppWifi_Task(void *pvArg)
             }
             else
             {
-                APP_TRACE("\r\nConnexion timeout !...\r\n");
+                APP_TRACE("\r\n[AppWifi] Connexion timeout !...\r\n");
                 bAppWifi_DisableWifi = true;
                 eAppWifi_State = WIFI_DISCONNECTED;
             }
@@ -154,14 +154,14 @@ static void vAppWifi_Task(void *pvArg)
             if (WiFi.status() != WL_CONNECTED)
             {
                 eAppWifi_State = WIFI_DISCONNECTED;
-                APP_TRACE("WiFi disconnected, attempting to reconnect...\r\n");
+                APP_TRACE("[AppWifi] WiFi disconnected, attempting to reconnect...\r\n");
             }
             break;
 
         default:
             // État inconnu, réinitialisation à déconnecté
             eAppWifi_State = WIFI_DISCONNECTED;
-            APP_TRACE("Unknown WiFi state\r\n");
+            APP_TRACE("[AppWifi] Unknown WiFi state\r\n");
             break;
         }
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -184,8 +184,8 @@ void vAppWifi_OnWifiConnect(void)
         {
             mqttClient.setMqttClientName(stAppWifi_Config.pcHostName);
         }
-        snprintf(pcURI, 64, "mqtts://%s:%u", stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port);
-        snprintf(pcPrint, 256, "Connecting to MQTT broker: %s\r\n", pcURI);
+        snprintf(pcURI, 64, "[AppWifi] mqtts://%s:%u", stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port);
+        snprintf(pcPrint, 256, "[AppWifi] Connecting to MQTT broker: %s\r\n", pcURI);
         APP_TRACE(pcPrint);
         mqttClient.setURI(pcURI, stAppWifi_MqttCfg.pcLogin, stAppWifi_MqttCfg.pcPwd);
         mqttClient.setCaCert(CAcert);
@@ -197,14 +197,14 @@ void vAppWifi_OnWifiConnect(void)
 void MqttCallback_Main(const std::string payload)
 {
     char tcBuffer[256];
-    snprintf(tcBuffer, 256, "Mqtt rx from \"/lumiapp\" -> %s\r\n", payload.c_str());
+    snprintf(tcBuffer, 256, "[AppWifi] Mqtt rx from \"/lumiapp\" -> %s\r\n", payload.c_str());
     APP_TRACE(tcBuffer);
 }
 
 void MqttCallback_Device(const std::string payload)
 {
     char tcBuffer[256];
-    snprintf(tcBuffer, 256, "Mqtt rx from \"/lumiapp/%s\" -> %s\r\n", stAppWifi_Config.pcHostName, payload.c_str());
+    snprintf(tcBuffer, 256, "[AppWifi] Mqtt rx from \"/lumiapp/%s\" -> %s\r\n", stAppWifi_Config.pcHostName, payload.c_str());
     APP_TRACE(tcBuffer);
 }
 
@@ -212,7 +212,7 @@ void onMqttConnect(esp_mqtt_client_handle_t client)
 {
     if (mqttClient.isConnected())
     {
-        APP_TRACE("MQTT connected !\r\n");
+        APP_TRACE("[AppWifi] MQTT connected !\r\n");
     }
     if (mqttClient.isMyTurn(client))
     {
