@@ -118,7 +118,7 @@ static void vAppWifi_Task(void *pvArg)
         case WIFI_DISCONNECTED:
             if (bAppWifi_SyncWifiConfig() && !bAppWifi_DisableWifi)
             {
-                snprintf(pcPrintBuffer, LOCAL_PRINT_BUFFER, "[AppWifi] Connectig to %s", stAppWifi_Config.pcSsid);
+                snprintf(pcPrintBuffer, LOCAL_PRINT_BUFFER, "[AppWifi] Connectig to %s\r\n", stAppWifi_Config.pcSsid);
                 APP_TRACE(pcPrintBuffer);
                 WiFi.mode(WIFI_STA);
                 if (stAppWifi_Config.pcHostName != nullptr)
@@ -184,7 +184,7 @@ void vAppWifi_OnWifiConnect(void)
         {
             mqttClient.setMqttClientName(stAppWifi_Config.pcHostName);
         }
-        snprintf(pcURI, 64, "[AppWifi] mqtts://%s:%u", stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port);
+        snprintf(pcURI, 64, "mqtts://%s:%u", stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port);
         snprintf(pcPrint, 256, "[AppWifi] Connecting to MQTT broker: %s\r\n", pcURI);
         APP_TRACE(pcPrint);
         mqttClient.setURI(pcURI, stAppWifi_MqttCfg.pcLogin, stAppWifi_MqttCfg.pcPwd);

@@ -25,14 +25,14 @@ SubStrip::SubStrip(uint8_t u8NbLeds, CRGB *pLeds) {
     u8NbLeds = (u8NbLeds < 1) ? 1 : u8NbLeds; // Ensure at least one LED
     u8NbLeds = (u8NbLeds > 200) ? 200 : u8NbLeds; // Ensure at most 200 LEDs
     _u8NbLeds = u8NbLeds;
-    _ColorPalette = NULL;
-    if (pLeds == NULL) { // dynamic allocation
-        _SubLeds = new CRGB[_u8NbLeds];
-        _bDynamic = true;
-    }
-    else {
+    _ColorPalette = nullptr;
+    if (pLeds != nullptr) { // dynamic allocation
         _SubLeds = pLeds; // use given pointer as strip reference
         _bDynamic = false;
+    }
+    else {
+        _SubLeds = new CRGB[_u8NbLeds];
+        _bDynamic = true;
     }
     
     _u32Period = 2000;
@@ -45,7 +45,7 @@ SubStrip::SubStrip(uint8_t u8NbLeds, CRGB *pLeds) {
     _u8Index = 0;
     _u8Bpm = 30;
     _u8DelayRate = 0;
-    _pPixel = NULL;
+    _pPixel = nullptr;
     _u8Offset = 0;
     vClear();
 }
@@ -67,9 +67,11 @@ SubStrip::~SubStrip() {
  ******************************************************************************/
 SubStrip::TeRetVal SubStrip::eGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
     TeRetVal eRet = RET_OK;
-    if ((u8NbLeds > _u8NbLeds) || (leds == NULL))
+    if ((u8NbLeds > _u8NbLeds) || (leds == nullptr))
     { _MNG_RETURN(RET_BAD_PARAMETER); }
     else if (!_bDynamic)
+    { _MNG_RETURN(RET_INTERNAL_ERROR); }
+    else if (_SubLeds == nullptr)
     { _MNG_RETURN(RET_INTERNAL_ERROR); }
     else {
         memcpy(leds, _SubLeds, u8NbLeds * sizeof(CRGB));
@@ -84,7 +86,7 @@ SubStrip::TeRetVal SubStrip::eGetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
  ******************************************************************************/
 SubStrip::TeRetVal SubStrip::eSetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
     TeRetVal eRet = RET_OK;
-    if ((leds == NULL) || (u8NbLeds > _u8NbLeds)) {
+    if ((leds == nullptr) || (u8NbLeds > _u8NbLeds)) {
         _MNG_RETURN(RET_BAD_PARAMETER);
     }
     else {
@@ -96,8 +98,12 @@ SubStrip::TeRetVal SubStrip::eSetSubStrip(CRGB *leds, uint8_t u8NbLeds) {
 /*******************************************************************************
  * @brief Manage animations within the sub-strip.
  ******************************************************************************/
-void SubStrip::vManageAnimation(uint32_t u32Now) {
-    switch (_eCurrentAnimation) {
+void SubStrip::vManageAnimation(uint32_t u32Now)
+{
+    if (_SubLeds != nullptr)
+    {
+        switch (_eCurrentAnimation)
+        {
         case GLITTER:
             // Call glitter animation function
             vAnimateGlitter();
@@ -105,7 +111,8 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
 
         case RAINDROPS:
             // Call raindrops animation function
-            if ((_u32Timeout < u32Now) && (_u32Period != SUBSTRIP_STOP_PERIODIC)) {
+            if ((_u32Timeout < u32Now) && (_u32Period != SUBSTRIP_STOP_PERIODIC))
+            {
                 _u32Timeout = u32Now + _u32Period;
                 _bTrigger = true;
             }
@@ -123,6 +130,7 @@ void SubStrip::vManageAnimation(uint32_t u32Now) {
 
         default:
             break;
+        }
     }
 }
 
@@ -183,7 +191,7 @@ SubStrip::TeRetVal SubStrip::eSetAnimation(TeAnimation eAnim, CRGB *pPalette, ui
 SubStrip::TeRetVal SubStrip::eSetColorPalette(CRGB *ColorPalette) {
 TeRetVal eRet = RET_OK;
     /* Protect from bad parameters */
-    if (ColorPalette == NULL) {
+    if (ColorPalette == nullptr) {
         _MNG_RETURN(RET_BAD_PARAMETER);
     }
     else if (*ColorPalette == CRGB::Black) {
@@ -336,10 +344,10 @@ bool SubStrip::bIsBlack(void) {
 
 /*******************************************************************************
  * @brief Shift leds forward (Din -> Dout)
- * @param Color pointer to color to feed, NULL will feed last color back
+ * @param Color pointer to color to feed, nullptr will feed last color back
  ******************************************************************************/
 void SubStrip::vShiftFwd(CRGB *Color) {
-    CRGB last = (Color != NULL) ? *Color : _SubLeds[_u8NbLeds - 1];
+    CRGB last = (Color != nullptr) ? *Color : _SubLeds[_u8NbLeds - 1];
     CRGB* pLeds = _SubLeds + _u8NbLeds - 1;
 
     for (uint8_t i = 0; i < _u8NbLeds; i++) {
@@ -361,10 +369,10 @@ void SubStrip::vInsertFwd(CRGB ColorFeed) {
 
 /*******************************************************************************
  * @brief Shift leds backward (Dout -> Din)
- * @param Color pointer to color to feed, NULL will feed first color back
+ * @param Color pointer to color to feed, nullptr will feed first color back
  ******************************************************************************/
 void SubStrip::vShiftBwd(CRGB *Color) {
-    CRGB first = (Color != NULL) ? *Color : _SubLeds[0];
+    CRGB first = (Color != nullptr) ? *Color : _SubLeds[0];
     CRGB* pLeds = _SubLeds;
 
     for (uint8_t i = 0; i < _u8NbLeds - 1; i++) {
@@ -396,7 +404,7 @@ void SubStrip::vAnimateGlitter() {
     fadeToBlackBy(_SubLeds, _u8NbLeds, _u8FadeRate);
     if ((_u8DelayRate % _u8Speed) == 0) {
         _u8DelayRate = 0;
-        CRGB *pPixel = NULL;
+        CRGB *pPixel = nullptr;
         for (uint8_t i = 0; i < _u8ColorNb; i++) {
             pPixel = _SubLeds + (random8() % _u8NbLeds);
             // if (*pPixel == CRGB::Black)
@@ -410,7 +418,7 @@ void SubStrip::vAnimateGlitter() {
  * @brief Manage raindrop animation
  ******************************************************************************/
 void SubStrip::vAnimateRaindrops() {
-    if (_ColorPalette == NULL)
+    if (_ColorPalette == nullptr)
     { return; }
     
     // if ((_u8DelayRate % _u8Speed) == 0)
@@ -424,7 +432,7 @@ void SubStrip::vAnimateRaindrops() {
 
     if ((_u8DelayRate % _u8Speed) == 0) {
         _u8DelayRate = 0;
-        if ((_pPixel != NULL) && (_u8Index < _u8NbLeds)) {
+        if ((_pPixel != nullptr) && (_u8Index < _u8NbLeds)) {
             *_pPixel = *_ColorPalette;
             _u8Index++;
             _pPixel++;
@@ -441,9 +449,9 @@ void SubStrip::vAnimateCheckered() {
     if ((_u8DelayRate % _u8Speed) == 0) {
         _u8DelayRate = 0;
         if (_eDirection == FORWARD_INOUT)
-        { vShiftFwd(NULL); }
+        { vShiftFwd(nullptr); }
         else
-        { vShiftBwd(NULL); }
+        { vShiftBwd(nullptr); }
     }
     _u8DelayRate++;
 }
@@ -466,7 +474,7 @@ void SubStrip::vAnimateWave(void) {
  ******************************************************************************/
 SubStrip::TeRetVal SubStrip::eInitCheckered() {
     TeRetVal eRet = RET_OK;
-    if ((!_u8ColorNb) || (_ColorPalette == NULL)){
+    if ((!_u8ColorNb) || (_ColorPalette == nullptr)){
         _MNG_RETURN(RET_INTERNAL_ERROR);
     }
     else {

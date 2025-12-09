@@ -23,6 +23,7 @@ public:
         RET_GENERIC_ERROR       = -1,
         RET_BAD_PARAMETER       = RET_GENERIC_ERROR - 1,
         RET_INTERNAL_ERROR      = RET_GENERIC_ERROR - 2,
+        RET_NULLPTR             = RET_GENERIC_ERROR - 3,
     } TeRetVal;
 
     typedef enum {

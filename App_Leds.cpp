@@ -51,6 +51,7 @@ typedef struct {
     uint8_t u8NbStrips;
     uint8_t* pu8Strips;
     CRGB* pLedStrip;
+    CRGB* pSubstripAssemly;
     SubStrip *SubStrips;
 } TstStripCfg;
 
@@ -64,12 +65,20 @@ typedef struct {
     CRGB* pPalette;
 } TstConfig;
 
+typedef enum {
+    LEDSTRIP_BLACKOUT,
+    LEDSTRIP_STANDBY,
+    LEDSTRIP_RUN,
+    LEDSTRIP_FIXED,
+} TeAppLED_LedstripStates;
+
 /*******************************************************************************
  *  GLOBAL VARIABLES
  ******************************************************************************/
 static TstStripCfg stAppLED_Config  = {0, 0, nullptr, nullptr, nullptr};
 static CRGB pMyColorPalette1[3] = {CRGB::White, CRGB::Red, CRGB::Black};
 static CRGB tCustomPalettes[LED_SUBSTRIP_NB][LED_STATIC_PALETTE_NB + 1] = {{{CRGB::Black}}};
+static TeAppLED_LedstripStates eAppLed_CurrentState = LEDSTRIP_BLACKOUT;
 
 static CRGB *ledStrip;
 static SubStrip *SubStrips;
@@ -105,6 +114,7 @@ void vAppLedsAnimTask(void *pvParam);
  * 
  ******************************************************************************/
 void AppLED_init(void) {
+    char tcPrint[PRINT_UTILS_MAX_BUF];
     bool bStartTasking = false;
     JsonArray jStrips;
     bAppCfg_LockJson();
@@ -112,43 +122,39 @@ void AppLED_init(void) {
     stAppLED_Config.u8NbStrips = jStrips.size();
     if (stAppLED_Config.u8NbStrips)
     {
-        char tcPrint[128];
-        snprintf(tcPrint, 128, "[AppLED_init] Loading %u strips: ", stAppLED_Config.u8NbStrips);
         stAppLED_Config.pu8Strips = (uint8_t*)pvPortMalloc(stAppLED_Config.u8NbStrips * sizeof(uint8_t));
         if (stAppLED_Config.pu8Strips)
         {
             uint8_t *ptr = stAppLED_Config.pu8Strips;
-            for(uint8_t u8Val : jStrips)
+            for (uint8_t u8Val : jStrips)
             {
                 *ptr = u8Val;
                 stAppLED_Config.u16NbLeds += u8Val;
-                snprintf(tcPrint + strlen(tcPrint), 128 - strlen(tcPrint), "%u ", u8Val);
                 ptr++;
             }
-            snprintf(tcPrint + strlen(tcPrint), 128 - strlen(tcPrint), "\r\nTotal ledstrip: %u\r\n", stAppLED_Config.u16NbLeds);
         }
         else 
-        { snprintf(tcPrint + strlen(tcPrint), 128 - strlen(tcPrint), "[AppLED_init] Malloc error !\r\n"); }
-        APP_TRACE(tcPrint);
-    }
-    else
-    {
-        APP_TRACE("[AppLED_init] No strip found into config file!\r\n");
+        { APP_TRACE("[AppLED_init] Malloc error !\r\n"); }
     }
     bAppCfg_UnlockJson();
 
     if (stAppLED_Config.u16NbLeds && stAppLED_Config.u8NbStrips && stAppLED_Config.pu8Strips)
     {
-        stAppLED_Config.pLedStrip = (CRGB*)pvPortMalloc(stAppLED_Config.u16NbLeds * sizeof(CRGB)); // Dynamic allocation
+        stAppLED_Config.pLedStrip = (CRGB*)pvPortMalloc(stAppLED_Config.u16NbLeds * sizeof(CRGB)); // Dynamic allocation, display strip
+        stAppLED_Config.pSubstripAssemly = (CRGB*)pvPortMalloc(stAppLED_Config.u16NbLeds * sizeof(CRGB)); // Dynamic allocation, working strip
         stAppLED_Config.SubStrips = (SubStrip*)pvPortMalloc(stAppLED_Config.u8NbStrips * sizeof(SubStrip)); // Dynamic allocation
         if ((stAppLED_Config.pLedStrip != nullptr) && (stAppLED_Config.SubStrips != nullptr))
         {
-            CRGB *ptrCRGB = stAppLED_Config.pLedStrip;
+            snprintf(tcPrint, PRINT_UTILS_MAX_BUF, "[AppLED_init] Loading %u strips:", stAppLED_Config.u8NbStrips);
+            CRGB *pSub = stAppLED_Config.pSubstripAssemly;
             for (uint8_t u8cnt = 0; u8cnt < stAppLED_Config.u8NbStrips; u8cnt++)
             {
-                stAppLED_Config.SubStrips[u8cnt] = SubStrip(stAppLED_Config.pu8Strips[u8cnt], ptrCRGB); // create substrip assembly by reference
-                ptrCRGB += stAppLED_Config.pu8Strips[u8cnt];
+                stAppLED_Config.SubStrips[u8cnt] = SubStrip(stAppLED_Config.pu8Strips[u8cnt], pSub);
+                snprintf(tcPrint + strlen(tcPrint), PRINT_UTILS_MAX_BUF - strlen(tcPrint), " %u", stAppLED_Config.pu8Strips[u8cnt]);
+                pSub += stAppLED_Config.pu8Strips[u8cnt];
             }
+            snprintf(tcPrint + strlen(tcPrint), PRINT_UTILS_MAX_BUF - strlen(tcPrint), "\r\nTotal ledstrip: %u\r\n", stAppLED_Config.u16NbLeds);
+            APP_TRACE(tcPrint);
             ledStrip = stAppLED_Config.pLedStrip;
             SubStrips = stAppLED_Config.SubStrips;
             FastLED.addLeds<LED_CHIPSET, LED_DATA_PIN, LED_PIXEL_ORDER>(ledStrip, stAppLED_Config.u16NbLeds);
@@ -158,7 +164,6 @@ void AppLED_init(void) {
             FastLED.show();
             TstConfig *pstConfig = (TstConfig *)AnimationConfig;
             SubStrip *pObj = SubStrips;
-            char tcDbgString[PRINT_UTILS_MAX_BUF] = {0};
             for (uint8_t i = 0; i < stAppLED_Config.u8NbStrips; i++)
             {
                 pObj->eSetOffset(pstConfig->u8Offset);
@@ -166,13 +171,14 @@ void AppLED_init(void) {
                 pObj->eSetFadeRate(pstConfig->u16MsFade);
                 if (pObj->eSetAnimation(pstConfig->eAnimation, pstConfig->pPalette, pstConfig->u32Period, pstConfig->u8Speed) < SubStrip::RET_OK)
                 {
-                    snprintf(tcDbgString, PRINT_UTILS_MAX_BUF, "[AppLED_init] SubStrip %u set animation failed\r\n", i);
-                    APP_TRACE(tcDbgString);
+                    snprintf(tcPrint, PRINT_UTILS_MAX_BUF, "[AppLED_init] SubStrip %u set animation failed\r\n", i);
+                    APP_TRACE(tcPrint);
                 }
                 // pstConfig++;
                 pObj++;
             }
             bStartTasking = true;
+
         }
         else
         {
@@ -192,42 +198,64 @@ void AppLED_init(void) {
         {
             xSemaphoreGive(xLedStripSema);
             xTaskCreate(vAppLedsTask, LED_TASK, LED_TASK_HEAP, LED_TASK_PARAM, LED_TASK_PRIO, LED_TASK_HANDLE);
-            APP_TRACE("[AppLED_init] Run task!\r\n");
+            snprintf(tcPrint, PRINT_UTILS_MAX_BUF, "[AppLED_init] Run task!\r\nFree heap: %u\r\n", ESP.getFreeHeap());
+            APP_TRACE(tcPrint);
         }
     }
 #endif
 }
 
-#if APP_TASKS
 /*******************************************************************************
  * @brief AppLeds main task
  * 
  ******************************************************************************/
-void vAppLedsTask(void *pvParam) {
-    char tcDbgString[PRINT_UTILS_MAX_BUF] = {0};
-    uint8_t u8Toggle = 0;
-    uint8_t u8SubIndex = 0;
+void vAppLedsTask(void *pvParam)
+{
+    char tcPrint[PRINT_UTILS_MAX_BUF] = {0};
     TickType_t xLastWakeTime = xTaskGetTickCount();
+    TickType_t xTaskPeriod = pdMS_TO_TICKS(_LED_TIMEOUT);
     uint32_t u32Now;
-    // uint16_t u16Cnt = 0;
-    SubStrip *pObj;
-    while (1) {
-        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(_LED_TIMEOUT));
-        if (LOCK_LEDS()) {
-            // protected ressource >>>
+    while (1)
+    {
+        switch (eAppLed_CurrentState)
+        {
+        case LEDSTRIP_BLACKOUT:
+            xTaskPeriod = pdMS_TO_TICKS(100);
+            FastLED.clear();
+            FastLED.show();
+            break;
+
+        case LEDSTRIP_STANDBY:
+            xTaskPeriod = pdMS_TO_TICKS(100);
+            // freeze ledstrip
+            break;
+
+        case LEDSTRIP_RUN:
+        if (LOCK_LEDS())
+        {
+            xTaskPeriod = pdMS_TO_TICKS(_LED_TIMEOUT); //update task period
             u32Now = millis();
-            pObj = SubStrips;
-            for (u8SubIndex = 0; u8SubIndex < stAppLED_Config.u8NbStrips; u8SubIndex++) {
+            SubStrip *pObj = SubStrips;
+            // manage substrip operation
+            for (uint8_t u8Sub = 0; u8Sub < stAppLED_Config.u8NbStrips; u8Sub++)
+            {
                 pObj->vManageAnimation(u32Now);
                 pObj++;
             }
-            if (!bAppLed_displayOn)
-            { FastLED.clear(); }
+            memcpy(ledStrip, stAppLED_Config.pSubstripAssemly, stAppLED_Config.u16NbLeds * sizeof(CRGB));
             FastLED.show();
-            // <<< end of protected ressource
             UNLOCK_LEDS();
         }
-    }
+        break;
+
+        case LEDSTRIP_FIXED:
+            break;
+
+        default:
+            break;
+        }
+        vTaskDelayUntil(&xLastWakeTime, xTaskPeriod);
+    } // end task loop
 }
 
 /*******************************************************************************
@@ -250,35 +278,14 @@ void vAppLedsAnimTask(void *pvParam) {
         }
     }
 }
-#else
-/*******************************************************************************
- * @brief Self-timed ledstrip refresh
- * 
- ******************************************************************************/
-void AppLED_showLoop(void) {
-    SubStrip *pObj = SubStrips;
-    static uint32_t u32Timeout = 0;
-    uint32_t u32RightNow = millis();
-    CRGB* Colors;
-
-    if (u32Timeout < u32RightNow) {
-        u32Timeout = u32RightNow + _LED_TIMEOUT;
-        for (uint8_t i = 0; i < LED_SUBSTRIP_NB; i++) {
-            pObj->vManageAnimation(u32RightNow);
-            pObj++;
-        }
-        FastLED.show();
-    }
-}
-#endif
 
 eApp_RetVal eAppLed_blackout(void) {
-    bAppLed_displayOn = false;
+    eAppLed_CurrentState = LEDSTRIP_BLACKOUT;
     return eRet_Ok;
 }
 
 eApp_RetVal eAppLed_resume(void) {
-    bAppLed_displayOn = true;
+    eAppLed_CurrentState = LEDSTRIP_RUN;
     return eRet_Ok;
 }
 
