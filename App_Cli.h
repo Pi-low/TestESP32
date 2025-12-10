@@ -10,6 +10,7 @@
 #define _APP_CLI_H_
 
 #include <Arduino.h>
+#include <SimpleCLI.h>
 #include "Config.h"
 
 #define GENERATE_ARG_ENUM(ENUM)         eArg_##ENUM,
@@ -36,15 +37,15 @@
     PARAM(deviceName)                   \
     PARAM(strips)
 
-enum {
+enum eArgSubstrip{
     FOREACH_SUBSTRIP_ARG(GENERATE_ARG_ENUM)
 };
 
-enum {
+enum eArgMqtt{
     FOREACH_SETMQTT_ARG(GENERATE_ARG_ENUM)
 };
 
-enum {
+enum eArgSet{
     FOREACH_SET_ARG(GENERATE_ARG_ENUM)
 };
 

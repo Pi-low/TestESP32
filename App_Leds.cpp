@@ -46,6 +46,7 @@
 /*******************************************************************************
  *  TYPES, ENUM, DEFINITIONS 
  ******************************************************************************/
+#define STRING_TAB_SIZE(tab)     (sizeof(tab)/sizeof(*tab))
 typedef struct {
     uint16_t u16NbLeds;
     uint8_t u8NbStrips;
@@ -108,6 +109,7 @@ SemaphoreHandle_t xLedStripSema;
 void vAppLedsTask(void *pvParam);
 void vAppLedsAnimTask(void *pvParam);
 #endif
+uint8_t u8StrList2Index(const char* pcToSearch, const char **pcStrList, uint8_t u8LstSize);
 
 /*******************************************************************************
  * @brief Initialize ledstrip
@@ -511,33 +513,58 @@ eApp_RetVal eAppLed_LoadColors(CRGB *xColor, uint8_t u8NbColors, uint8_t u8Palet
 eApp_RetVal eAppLed_ConfigSubstrip(uint8_t u8StripId, uint8_t u8CmdIndex, const char* pcValue)
 {
     eApp_RetVal eRet;
+    uint16_t u16value = atoi(pcValue);
     switch(u8CmdIndex)
     {
         case eArg_palette:
+        eRet = eAppLed_SetPalette(u16value, u8StripId);
         break;
 
         case eArg_anim:
+        eRet = eAppLed_SetAnimation((SubStrip::TeAnimation)u8StrList2Index(pcValue, (const char**)tpcAppLED_Animations, STRING_TAB_SIZE(tpcAppLED_Animations)), u8StripId);
         break;
 
         case eArg_speed:
+        eRet = eAppLed_SetSpeed(u16value, u8StripId);
         break;
 
         case eArg_period:
+        eRet = eAppLed_SetPeriod(u16value, u8StripId);
         break;
 
         case eArg_fade:
+        eRet = eAppLed_SetFade(u16value, u8StripId);
         break;
 
         case eArg_dir:
+        eRet = eAppLed_SetDirection(u16value, u8StripId);
         break;
 
         case eArg_offset:
+        eRet = eAppLed_SetOffset(u16value, u8StripId);
         break;
 
         case eArg_bpm:
+        eRet = eAppLed_SetBpm(u16value, u8StripId);
         break;
     }
     return eRet;
+}
+
+uint8_t u8StrList2Index(const char* pcToSearch, const char **pcStrList, uint8_t u8LstSize)
+{
+    char **ptrLst = pcStrList;
+    uint8_t u8Ret = 0xFF;
+    for (uint8_t u8Cnt = 0; u8Cnt < u8LstSize; u8Cnt++)
+    {
+        if (strncmp(pcToSearch, *ptrLst, strlen(pcToSearch)) == 0)
+        {
+            u8Ret = u8Cnt;
+            break;
+        }
+        ptrLst++;
+    }
+    return u8Ret;
 }
 
 #endif // APP_FASTLED

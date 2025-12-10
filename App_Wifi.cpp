@@ -68,7 +68,30 @@ static bool bAppWifi_MqttInit;
 static TstAppWifi_Config stAppWifi_Config;
 static TeAppWifi_State eAppWifi_State = WIFI_DISCONNECTED;
 static TstAppWifi_MqttConfig stAppWifi_MqttCfg;
-const char* CAcert = nullptr;
+const char* CAcert = "-----BEGIN CERTIFICATE-----\n\
+MIIEFzCCAv+gAwIBAgIUDCvnrHrtx0dEmWX+XURscf17V04wDQYJKoZIhvcNAQEL\n\
+BQAwgZoxCzAJBgNVBAYTAkZSMQ8wDQYDVQQIDAZTYXZvaWUxFjAUBgNVBAcMDUFp\n\
+eC1sZXMtQmFpbnMxEDAOBgNVBAoMB0hvbWVzeXMxDTALBgNVBAsMBEF1dGgxFzAV\n\
+BgNVBAMMDjE3Ni4xNzAuMTMyLjMyMSgwJgYJKoZIhvcNAQkBFhluZWxsby5jaG9t\n\
+QHByb3Rvbm1haWwuY29tMB4XDTI1MTIwNTE1MjEzMFoXDTM1MTAxNDE1MjEzMFow\n\
+gZoxCzAJBgNVBAYTAkZSMQ8wDQYDVQQIDAZTYXZvaWUxFjAUBgNVBAcMDUFpeC1s\n\
+ZXMtQmFpbnMxEDAOBgNVBAoMB0hvbWVzeXMxDTALBgNVBAsMBEF1dGgxFzAVBgNV\n\
+BAMMDjE3Ni4xNzAuMTMyLjMyMSgwJgYJKoZIhvcNAQkBFhluZWxsby5jaG9tQHBy\n\
+b3Rvbm1haWwuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwOyh\n\
+mRPjItz2OaDm0dSx3KXahGBmqrUdZXMx8w/CuyHzuIJ2O+5wbPWaEszJdMpmM0vs\n\
+Yzeyat6JZ7vMDKsMgQTOuMsgqxmps4GqEGjR/cVbjeYpvb//upwkJhoYZq7ddo1X\n\
+JFIS/5Wv1jiSlQTW23FQXOUJQagpKeqUkcuOoWhR0hYV6eimWnqcl6rKNxoqtQz0\n\
+ylTHpNw/zIf4E2U5VNcFuSm/GNLfeepYkYIQ8J7qNbwfgWRGiWFWJNTVW1pp3mF5\n\
+vXA5XcQ/SEx+nev7nAYawUi9/ehnjAqKdnYLY3CXauMjnM9ScIuOea94tDMPj02s\n\
+qqlgLAY8tLAzU/yluwIDAQABo1MwUTAdBgNVHQ4EFgQUzNvFuwQae8FK2bc4mY5J\n\
+oWO8GUEwHwYDVR0jBBgwFoAUzNvFuwQae8FK2bc4mY5JoWO8GUEwDwYDVR0TAQH/\n\
+BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAA3vumCu7ap42x9ZXheIMz5awM4aS\n\
+EKXgIXyOpYNH75Jfc+AMF/bEUiKnKyAtWf1HLNG9EzWzMGPEaEBmYGuxmnH0sm8d\n\
+XtFKDNFsTzxmX22sCyxSA7qolqLCL2GktDcrfyIyi2ojhatbqo6zD0e4ZOGUAAAJ\n\
+TYluSgNIw5VJ7S25EMMOe2dQos7zRJbMcmGDeW6zGhMp2DPuoyMMajpufwija2Yx\n\
+F48N7JjIe8/qI4VkTg8tCgSBKlXkZD80iLlYlg4MQ1zO7iAzFmLuowy4p8pWildb\n\
+6xPLf+LxQU8HckRydwqCz8WN8UakxCek+I5nWZqtBsPpoAY1mwLHq8583g==\n\
+-----END CERTIFICATE-----\n";
 
 /*******************************************************************************
  *  Prototypes

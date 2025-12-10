@@ -7,15 +7,16 @@
  */
 
 #include "App_Cli.h"
-#include "SimpleCLI.h"
 #include "App_Leds.h"
 #include "App_PrintUtils.h"
 #include <string>
 
+//#define CLI_VARIANT
+
 #if APP_TASKS
 // APP_CLI
 #define CLI_TASK            "APP_CLI"
-#define CLI_TASK_HEAP       (configMINIMAL_STACK_SIZE*4)
+#define CLI_TASK_HEAP       (configMINIMAL_STACK_SIZE*6)
 #define CLI_TASK_PARAM      NULL
 #define CLI_TASK_PRIO       2
 #define CLI_TASK_HANDLE     NULL
@@ -23,16 +24,17 @@
 static void vAppCli_Task(void* pvArg);
 #endif
 
-#define CLI_RX_BUFFER_SIZE  128
+#define CLI_RX_BUFFER_SIZE  256
 #define CLI_TX_BUFFER_SIZE  256
 
 #define GENERATE_CMD_ENUM(ENUM)         Cmd_##ENUM,
-#define GENERATE_ARG_STR(ENUM)          #ENUM,
+#define GENERATE_STR(ENUM)              #ENUM,
 #define CMD_OBJ(CMD)                    xCommands[Cmd_##CMD]
 #define SET_BOUNDLESS(CMD)              xCommands[Cmd_##CMD] = xCli.addBoundlessCmd(#CMD, vCallback_##CMD)
 #define SET_SINGLE(CMD)                 xCommands[Cmd_##CMD] = xCli.addSingleArgCmd(#CMD, vCallback_##CMD)
 #define SET_MULTI(CMD)                  xCommands[Cmd_##CMD] = xCli.addCmd(#CMD, vCallback_##CMD)
 
+#ifdef CLI_VARIANT
 #define FOREACH_CLI_CMD(PARAM)          \
     PARAM(on)                           \
     PARAM(off)                          \
@@ -52,9 +54,19 @@ static void vAppCli_Task(void* pvArg);
     PARAM(setWifi)                      \
     PARAM(setMqtt)                      \
     PARAM(substrip)
-
-
-#define NB_COMMANDS 17
+#define NB_COMMANDS 18
+#else
+#define FOREACH_CLI_CMD(PARAM)          \
+    PARAM(on)                           \
+    PARAM(off)                          \
+    PARAM(brightness)                   \
+    PARAM(config)                       \
+    PARAM(set)                          \
+    PARAM(setWifi)                      \
+    PARAM(setMqtt)                      \
+    PARAM(substrip)
+#define NB_COMMANDS 8
+#endif
 
 typedef enum {
     FOREACH_CLI_CMD(GENERATE_CMD_ENUM)
@@ -64,6 +76,7 @@ SimpleCLI xCli;
 static void vCallback_off(cmd* xCommand);
 static void vCallback_on(cmd* xCommand);
 static void vCallback_brightness(cmd* xCommand);
+#ifdef CLI_VARIANT
 static void vCallback_anim(cmd* xCommand);
 static void vCallback_speed(cmd* xCommand);
 static void vCallback_period(cmd* xCommand);
@@ -73,6 +86,7 @@ static void vCallback_offset(cmd* xCommand);
 static void vCallback_bpm(cmd* xCommand);
 static void vCallback_palette(cmd* xCommand);
 static void vCallback_addColor(cmd* xCommand);
+#endif
 static void vCallback_config(cmd* xCommand);
 static void vCallback_set(cmd* xCommand);
 static void vCallback_setWifi(cmd* xCommand);
@@ -85,23 +99,25 @@ static void vCallback_error(cmd_error* xError);
 
 static Command xCommands[NB_COMMANDS];
 // static char tcCLI_WriteBuffer[CLI_TX_BUFFER_SIZE];
+// static char tcRxBuffer[CLI_RX_BUFFER_SIZE] = {0};
 
-const char* CtcAppCli_argSubstrip[] = {
-    FOREACH_SUBSTRIP_ARG(GENERATE_ARG_STR)
+static const char* CtcAppCli_argSubstrip[] = {
+    FOREACH_SUBSTRIP_ARG(GENERATE_STR)
 };
 
-const char* CtcAppCli_argMqtt[] = {
-    FOREACH_SETMQTT_ARG(GENERATE_ARG_STR)
+static const char* CtcAppCli_argMqtt[] = {
+    FOREACH_SETMQTT_ARG(GENERATE_STR)
 };
 
-const char *CtcAppCli_argSet[] = {
-    FOREACH_SET_ARG(GENERATE_ARG_STR)
+static const char *CtcAppCli_argSet[] = {
+    FOREACH_SET_ARG(GENERATE_STR)
 };
 
 void vAppCli_init(void) {
     SET_BOUNDLESS(on);
     SET_BOUNDLESS(off);
     SET_BOUNDLESS(brightness);
+#ifdef CLI_VARIANT
     SET_BOUNDLESS(anim);
     SET_BOUNDLESS(speed);
     SET_BOUNDLESS(period);
@@ -111,6 +127,7 @@ void vAppCli_init(void) {
     SET_BOUNDLESS(bpm);
     SET_BOUNDLESS(palette);
     SET_BOUNDLESS(addColor);
+#endif
     SET_SINGLE(config);
     SET_MULTI(set);
     SET_MULTI(setWifi);
@@ -121,7 +138,7 @@ void vAppCli_init(void) {
     {
         CMD_OBJ(substrip).addArg(CtcAppCli_argSubstrip[xCnt], nullptr);
     }
-    // CMD_OBJ(substrip).addArg("id", "all");
+    CMD_OBJ(substrip).addArg("id", "all");
 
     for (size_t xCnt = 0; xCnt < (sizeof(CtcAppCli_argMqtt) / sizeof(CtcAppCli_argMqtt[0])); xCnt++)
     {
@@ -146,12 +163,14 @@ void vAppCli_init(void) {
 static void vAppCli_Task(void* pvArg) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     char tcRxBuffer[CLI_RX_BUFFER_SIZE] = {0};
+    size_t xLen = 0;
     while (1) {
         vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(CLI_PERIOD));
-        if (Serial.available()) {
-            Serial.readBytesUntil('\n', tcRxBuffer, CLI_RX_BUFFER_SIZE-1);
-            xCli.parse(tcRxBuffer);
-            while(Serial.available()) { Serial.read(); } //flush rest of buffer
+        xLen = Serial.available();
+        if (xLen) {
+            xLen = MIN(xLen, CLI_RX_BUFFER_SIZE);
+            Serial.readBytes(tcRxBuffer, xLen);
+            xCli.parse(tcRxBuffer, xLen);
             memset(tcRxBuffer, 0, CLI_RX_BUFFER_SIZE);
         }
     }
@@ -178,6 +197,7 @@ static void vCallback_brightness(cmd* xCommand) {
     vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_SetBrightness(u8Value), argStr.c_str());
 }
 
+#ifdef CLI_VARIANT
 static void vCallback_anim(cmd* xCommand) {
     Command cmd(xCommand);
     String StrExtra;
@@ -386,10 +406,11 @@ static void vCallback_addColor(cmd* xCommand) {
 
     vAppCli_SendResponse(cmd.getName().c_str(), eAppLed_LoadColors(tcTmpPalette, u8ColorCnt, u8PaletteIndex), StrExtra.c_str());
 }
+#endif
 
 static void vAppCli_SendResponse(const char* pcCommandName, eApp_RetVal eRetval, const char* pcExtraString) {
     char tcPrint[CLI_TX_BUFFER_SIZE];
-    snprintf(tcPrint, CLI_TX_BUFFER_SIZE, "%s: %s %s\r\n>", pcReturnValueToString(eRetval), pcCommandName, pcExtraString ? pcExtraString : "\0");
+    snprintf(tcPrint, CLI_TX_BUFFER_SIZE, "%s: %d %s\r\n>", pcCommandName, pcReturnValueToString(eRetval), pcExtraString ? pcExtraString : " ");
     APP_TRACE(tcPrint);
 }
 
@@ -537,7 +558,7 @@ static void vCallback_setMqtt(cmd* xCommand)
 
 static void vCallback_substrip(cmd* xCommand) {
     Command cmd(xCommand);
-    uint8_t u8NbArg = cmd.countArgs();
+    uint8_t u8NbArg = cmd.countArgs() - 1;
     Argument arg = cmd.getArg("id");
     String strId = arg.getValue();
     char tcPrint[CLI_TX_BUFFER_SIZE];
@@ -561,5 +582,6 @@ static void vCallback_substrip(cmd* xCommand) {
 static void vCallback_error(cmd_error* xError) {
     CommandError cmdError(xError);
     String ErrStr = cmdError.toString();
-    vAppCli_SendResponse(ErrStr.c_str(), eRet_Error, NULL);
+    APP_TRACE(ErrStr.c_str());
+    // vAppCli_SendResponse(ErrStr.c_str(), eRet_Error, NULL);
 }
