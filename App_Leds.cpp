@@ -140,8 +140,8 @@ void AppLED_init(void) {
 
     if (stAppLED_Config.u16NbLeds && stAppLED_Config.u8NbStrips && stAppLED_Config.pu8Strips)
     {
-        stAppLED_Config.pLedStrip = (CRGB*)pvPortMalloc(stAppLED_Config.u16NbLeds * sizeof(CRGB)); // Dynamic allocation, display strip
-        stAppLED_Config.pSubstripAssemly = (CRGB*)pvPortMalloc(stAppLED_Config.u16NbLeds * sizeof(CRGB)); // Dynamic allocation, working strip
+        stAppLED_Config.pLedStrip = (CRGB*)pvPortMalloc(stAppLED_Config.u16NbLeds * sizeof(CRGB)); // Dynamic allocation, main display
+        stAppLED_Config.pSubstripAssemly = (CRGB*)pvPortMalloc(stAppLED_Config.u16NbLeds * sizeof(CRGB)); // Dynamic allocation, fx generator
         stAppLED_Config.SubStrips = (SubStrip*)pvPortMalloc(stAppLED_Config.u8NbStrips * sizeof(SubStrip)); // Dynamic allocation
         if ((stAppLED_Config.pLedStrip != nullptr) && (stAppLED_Config.SubStrips != nullptr))
         {
@@ -504,6 +504,38 @@ eApp_RetVal eAppLed_LoadColors(CRGB *xColor, uint8_t u8NbColors, uint8_t u8Palet
             memcpy(tCustomPalettes[u8PaletteIndex], xColor, sizeof(CRGB) * u8NbColors);
             UNLOCK_LEDS();
         }
+    }
+    return eRet;
+}
+
+eApp_RetVal eAppLed_ConfigSubstrip(uint8_t u8StripId, uint8_t u8CmdIndex, const char* pcValue)
+{
+    eApp_RetVal eRet;
+    switch(u8CmdIndex)
+    {
+        case eArg_palette:
+        break;
+
+        case eArg_anim:
+        break;
+
+        case eArg_speed:
+        break;
+
+        case eArg_period:
+        break;
+
+        case eArg_fade:
+        break;
+
+        case eArg_dir:
+        break;
+
+        case eArg_offset:
+        break;
+
+        case eArg_bpm:
+        break;
     }
     return eRet;
 }

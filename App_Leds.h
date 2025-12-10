@@ -15,6 +15,7 @@
 
 #include <FastLED.h>
 #include "SubStrip.h"
+#include "App_Cli.h"
 
 #define LED_SUBSTRIP_LEN    20
 #define LED_SUBSTRIP_NB     5
@@ -44,6 +45,7 @@ eApp_RetVal eAppLed_SetBpm(uint8_t u8Bpm, uint8_t u8Index);
 eApp_RetVal eAppLed_SetPalette(uint8_t u8PaletteIndex, uint8_t u8SubStripIndex);
 eApp_RetVal eAppLed_LoadColorAt(CRGB xColor, uint8_t u8PaletteIndex, uint8_t u8Index);
 eApp_RetVal eAppLed_LoadColors(CRGB *xColor, uint8_t u8NbColors, uint8_t u8PaletteIndex);
+eApp_RetVal eAppLed_ConfigSubstrip(uint8_t u8StripId, uint8_t u8CmdIndex, const char* pcValue);
 
 #endif // APP_FASTLED
 

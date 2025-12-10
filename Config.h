@@ -46,6 +46,7 @@ eApp_RetVal eAppCfg_SaveConfig(const char *pcToFilePath);
 eApp_RetVal eAppCfg_SetDefaultConfig(void);
 eApp_RetVal eAppCfg_ResetParamKey(const char* pcObjectKey);
 eApp_RetVal eAppCfg_SetStrips(const char* pcCfgFromCli);
+eApp_RetVal eAppCfg_SetMqttCfg(uint8_t u8ArgId, const char* pcArgVal);
 bool bAppCfg_LockJson(void);
 bool bAppCfg_UnlockJson(void);
 

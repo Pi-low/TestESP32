@@ -13,6 +13,7 @@
  ******************************************************************************/
 #include "App_PrintUtils.h"
 #include "Config.h"
+#include "App_Cli.h"
 #include "FS.h"
 #include "FFat.h"
 
@@ -450,6 +451,38 @@ eApp_RetVal eAppCfg_SetStrips(const char* pcCfgFromCli)
     vAppCfg_AddArrayToObject(jAppCfg_Config, "DEVICE_SUBSTRIPS", tu8StripAssembly, u8cnt);
     bAppCfg_UnlockJson();
     
+    return eRet;
+}
+
+eApp_RetVal eAppCfg_SetMqttCfg(uint8_t u8ArgId, const char* pcArgVal)
+{
+    eApp_RetVal eRet = eRet_Ok;
+    switch(u8ArgId)
+    {
+        case eArg_addr:
+        jAppCfg_Config["MQTT"]["ADDR"] = pcArgVal;
+        break;
+
+        case eArg_port:
+        jAppCfg_Config["MQTT"]["PORT"] = atoi(pcArgVal);
+        break;
+
+        case eArg_login:
+        jAppCfg_Config["MQTT"]["LOGIN"] = pcArgVal;
+        break;
+
+        case eArg_pwd:
+        jAppCfg_Config["MQTT"]["PWD"] = pcArgVal;
+        break;
+
+        case eArg_topic:
+        jAppCfg_Config["MQTT"]["GLOBAL_TOPIC"] = pcArgVal;
+        break;
+
+        case eArg_keepAlive:
+        jAppCfg_Config["MQTT"]["KEEPALIVE"] = atoi(pcArgVal);
+        break;
+    }
     return eRet;
 }
 
