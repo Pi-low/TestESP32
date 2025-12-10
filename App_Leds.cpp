@@ -537,7 +537,7 @@ eApp_RetVal eAppLed_ConfigSubstrip(uint8_t u8StripId, uint8_t u8CmdIndex, const 
         break;
 
         case eArg_dir:
-        eRet = eAppLed_SetDirection(u16value, u8StripId);
+        eRet = eAppLed_SetDirection((SubStrip::TeDirection)u16value, u8StripId);
         break;
 
         case eArg_offset:
@@ -553,7 +553,7 @@ eApp_RetVal eAppLed_ConfigSubstrip(uint8_t u8StripId, uint8_t u8CmdIndex, const 
 
 uint8_t u8StrList2Index(const char* pcToSearch, const char **pcStrList, uint8_t u8LstSize)
 {
-    char **ptrLst = pcStrList;
+    char **ptrLst = (char**)pcStrList;
     uint8_t u8Ret = 0xFF;
     for (uint8_t u8Cnt = 0; u8Cnt < u8LstSize; u8Cnt++)
     {

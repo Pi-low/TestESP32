@@ -10,7 +10,6 @@
 #define _APP_CLI_H_
 
 #include <Arduino.h>
-#include <SimpleCLI.h>
 #include "Config.h"
 
 #define GENERATE_ARG_ENUM(ENUM)         eArg_##ENUM,
@@ -36,6 +35,16 @@
 #define FOREACH_SET_ARG(PARAM)          \
     PARAM(deviceName)                   \
     PARAM(strips)
+
+#define FOREACH_PALETTE_ARG(PARAM)      \
+    PARAM(list)                         \
+    PARAM(new)                          \
+    PARAM(load)                         \
+    PARAM(save)                         \
+    PARAM(delete)                       \
+    PARAM(set)                          \
+    PARAM(add)                          \
+    PARAM(remove)
 
 enum eArgSubstrip{
     FOREACH_SUBSTRIP_ARG(GENERATE_ARG_ENUM)
