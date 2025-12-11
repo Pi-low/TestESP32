@@ -26,7 +26,6 @@ static void vAppCli_Task(void* pvArg);
 #define CLI_TX_BUFFER_SIZE  256
 
 #define GENERATE_CMD_ENUM(ENUM)         Cmd_##ENUM,
-#define GENERATE_STR(ENUM)              #ENUM,
 #define CMD_OBJ(CMD)                    xCommands[Cmd_##CMD]
 #define SET_BOUNDLESS(CMD)              xCommands[Cmd_##CMD] = xCli.addBoundlessCmd(#CMD, vCallback_##CMD)
 #define SET_SINGLE(CMD)                 xCommands[Cmd_##CMD] = xCli.addSingleArgCmd(#CMD, vCallback_##CMD)
@@ -77,6 +76,10 @@ static const char *CtcAppCli_argSet[] = {
     FOREACH_SET_ARG(GENERATE_STR)
 };
 
+static const char *CtcAppCli_argPalette[] = {
+    FOREACH_PALETTE_ARG(GENERATE_STR)
+};
+
 void vAppCli_init(void) {
     SET_BOUNDLESS(on);
     SET_BOUNDLESS(off);
@@ -87,18 +90,18 @@ void vAppCli_init(void) {
     SET_MULTI(setMqtt);
     SET_MULTI(substrip);
 
-    for (size_t xCnt = 0; xCnt < (sizeof(CtcAppCli_argSubstrip) / sizeof(CtcAppCli_argSubstrip[0])); xCnt++)
+    for (size_t xCnt = 0; xCnt < ARRAY_SIZEOF(CtcAppCli_argSubstrip); xCnt++)
     {
         CMD_OBJ(substrip).addArg(CtcAppCli_argSubstrip[xCnt], nullptr);
     }
     CMD_OBJ(substrip).addArg("id", "all");
 
-    for (size_t xCnt = 0; xCnt < (sizeof(CtcAppCli_argMqtt) / sizeof(CtcAppCli_argMqtt[0])); xCnt++)
+    for (size_t xCnt = 0; xCnt < ARRAY_SIZEOF(CtcAppCli_argMqtt); xCnt++)
     {
         CMD_OBJ(setMqtt).addArg(CtcAppCli_argMqtt[xCnt], nullptr);
     }
 
-    for (size_t xCnt = 0; xCnt < (sizeof(CtcAppCli_argSet) / sizeof(CtcAppCli_argSet[0])); xCnt++)
+    for (size_t xCnt = 0; xCnt < ARRAY_SIZEOF(CtcAppCli_argSet); xCnt++)
     {
         CMD_OBJ(set).addArg(CtcAppCli_argSet[xCnt], nullptr);
     }
@@ -230,8 +233,8 @@ static void vCallback_set(cmd* xCommand)
     Argument arg;
     char tcPrint[CLI_TX_BUFFER_SIZE];
     char **pcArgList = (char**)CtcAppCli_argSet;
-    APP_TRACE("set config param:\r\n")
-    for (size_t i = 0; i < (sizeof(CtcAppCli_argSet) / sizeof(CtcAppCli_argSet[0])); i++)
+    APP_TRACE("set config param:\r\n");
+    for (size_t i = 0; i < ARRAY_SIZEOF(CtcAppCli_argSet); i++)
     {
         arg = cmd.getArg(*pcArgList);
         if (arg.isSet())
@@ -261,7 +264,7 @@ static void vCallback_setWifi(cmd* xCommand)
     Argument arg_ssid = cmd.getArg("ssid");
     Argument arg_pwd = cmd.getArg("pwd");
     char tcPrint[CLI_TX_BUFFER_SIZE];
-    APP_TRACE("Configure wifi:\r\n")
+    APP_TRACE("Configure wifi:\r\n");
     bAppCfg_LockJson();
     if (arg_ssid.isSet())
     {
@@ -288,7 +291,7 @@ static void vCallback_setMqtt(cmd* xCommand)
     char tcPrint[CLI_TX_BUFFER_SIZE];
     APP_TRACE("Configure MQTT:\r\n");
     bAppCfg_LockJson();
-    for (size_t xCnt = 0; xCnt < (sizeof(CtcAppCli_argMqtt) / sizeof(CtcAppCli_argMqtt[0])); xCnt++)
+    for (size_t xCnt = 0; xCnt < ARRAY_SIZEOF(CtcAppCli_argMqtt); xCnt++)
     {
         arg = cmd.getArg(*pcArgList);
         if (arg.isSet())
@@ -314,7 +317,7 @@ static void vCallback_substrip(cmd* xCommand) {
     char **pcArgList = (char**)CtcAppCli_argSubstrip;
     snprintf(tcPrint, CLI_TX_BUFFER_SIZE, "substrip[%s] set:\r\n", strId.c_str());
     APP_TRACE(tcPrint);
-    for (size_t xCnt = 0; xCnt < (sizeof(CtcAppCli_argSubstrip) / sizeof(CtcAppCli_argSubstrip[0])); xCnt++)
+    for (size_t xCnt = 0; xCnt < ARRAY_SIZEOF(CtcAppCli_argSubstrip); xCnt++)
     {
         arg = cmd.getArg(*pcArgList);
         if (arg.isSet())

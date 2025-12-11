@@ -9,6 +9,9 @@
 #ifndef _TYPEDEFS_H
 #define _TYPEDEFS_H
 
+#define GENERATE_STR(ENUM)      #ENUM,
+#define ARRAY_SIZEOF(tab)    (sizeof(tab)/sizeof(*tab))
+
 typedef enum eApp_RetVal{
     eRet_Warning        = 1,
     eRet_Ok             = 0,

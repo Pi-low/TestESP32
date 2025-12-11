@@ -46,7 +46,6 @@
 /*******************************************************************************
  *  TYPES, ENUM, DEFINITIONS 
  ******************************************************************************/
-#define STRING_TAB_SIZE(tab)     (sizeof(tab)/sizeof(*tab))
 typedef struct {
     uint16_t u16NbLeds;
     uint8_t u8NbStrips;
@@ -521,7 +520,7 @@ eApp_RetVal eAppLed_ConfigSubstrip(uint8_t u8StripId, uint8_t u8CmdIndex, const 
         break;
 
         case eArg_anim:
-        eRet = eAppLed_SetAnimation((SubStrip::TeAnimation)u8StrList2Index(pcValue, (const char**)tpcAppLED_Animations, STRING_TAB_SIZE(tpcAppLED_Animations)), u8StripId);
+        eRet = eAppLed_SetAnimation((SubStrip::TeAnimation)u8StrList2Index(pcValue, (const char**)tpcAppLED_Animations, ARRAY_SIZEOF(tpcAppLED_Animations)), u8StripId);
         break;
 
         case eArg_speed:

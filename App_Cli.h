@@ -58,6 +58,10 @@ enum eArgSet{
     FOREACH_SET_ARG(GENERATE_ARG_ENUM)
 };
 
+enum eArgPalette {
+    FOREACH_PALETTE_ARG(GENERATE_ARG_ENUM)
+};
+
 void vAppCli_init(void);
 
 #endif // _APP_CLI_H_
