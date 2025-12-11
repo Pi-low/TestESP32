@@ -27,8 +27,10 @@ static void vAppWifi_Task(void *pvArg);
 #endif
 
 #define MAX_RETRY 3
-#define LOCAL_PRINT_BUFFER  256
-#define CONNECT_TIMEOUT     5000
+#define LOCAL_PRINT_BUFFER          256
+#define CONNECT_TIMEOUT_MS          30000
+#define RETRY_TIMEOUT_MS            300000
+#define WIFI_BUFFER_PARAM_LENGTH    64
 
 #define _MNG_RETURN(x)                      eRet = x
 
@@ -43,15 +45,14 @@ typedef enum {
 typedef struct {
     bool bAvailable;
     TickType_t xTimeout;
-    const char* pcSsid;
-    const char* pcPassword;
-    const char* pcHostName;
+    char tcSsid[WIFI_BUFFER_PARAM_LENGTH];
+    char tcPassword[WIFI_BUFFER_PARAM_LENGTH];
+    char tcHostName[WIFI_BUFFER_PARAM_LENGTH];
 } TstAppWifi_Config;
 
 /*******************************************************************************
  *  Global variable
  ******************************************************************************/
-ESP32MQTTClient mqttClient;
 static bool bAppWifi_DisableWifi;
 static TstAppWifi_Config stAppWifi_Config;
 static TeAppWifi_State eAppWifi_State = WIFI_DISCONNECTED;
@@ -76,9 +77,7 @@ eApp_RetVal eAppWifi_init(void)
 {
     eApp_RetVal eRet = eRet_Ok;
     bAppWifi_DisableWifi = false;
-    // bAppWifi_MqttInit = false;
     stAppWifi_Config.bAvailable = false;
-    // stAppWifi_MqttCfg.bAvailable = false;
 #if APP_TASKS
     xTaskCreate(vAppWifi_Task, WIFI_TASK, WIFI_TASK_HEAP, WIFI_TASK_PARAM, WIFI_TASK_PRIO, WIFI_TASK_HANDLE);
 #endif
@@ -103,14 +102,12 @@ static void vAppWifi_Task(void *pvArg)
         case WIFI_DISCONNECTED:
             if (bAppWifi_SyncWifiConfig() && !bAppWifi_DisableWifi)
             {
-                snprintf(pcPrintBuffer, LOCAL_PRINT_BUFFER, "[AppWifi] Connectig to %s\r\n", stAppWifi_Config.pcSsid);
+                snprintf(pcPrintBuffer, LOCAL_PRINT_BUFFER, "[AppWifi] Connectig to %s\r\n", stAppWifi_Config.tcSsid);
                 APP_TRACE(pcPrintBuffer);
                 WiFi.mode(WIFI_STA);
-                if (stAppWifi_Config.pcHostName != nullptr)
-                { WiFi.setHostname(stAppWifi_Config.pcHostName); }
-
-                WiFi.begin(stAppWifi_Config.pcSsid, stAppWifi_Config.pcPassword);
-                stAppWifi_Config.xTimeout = xTaskGetTickCount() + CONNECT_TIMEOUT;
+                WiFi.setHostname(stAppWifi_Config.tcHostName); }
+                WiFi.begin(stAppWifi_Config.tcSsid, stAppWifi_Config.tcPassword);
+                stAppWifi_Config.xTimeout = xTaskGetTickCount() + CONNECT_TIMEOUT_MS;
                 eAppWifi_State = WIFI_CONNECTING;
             }
             break;
@@ -174,21 +171,37 @@ void MqttCallback_Device(const std::string payload)
 
 bool bAppWifi_SyncWifiConfig(void)
 {
+    memset(stAppWifi_Config.tcHostName, 0, sizeof(stAppWifi_Config.tcHostName));
+    memset(stAppWifi_Config.tcSsid, 0, sizeof(stAppWifi_Config.tcSsid));
+    memset(stAppWifi_Config.tcPassword, 0, sizeof(stAppWifi_Config.tcPassword));
+
     bAppCfg_LockJson();
-    const char *ssid = jAppCfg_Config["WIFI"]["SSID"];
-    const char *pwd = jAppCfg_Config["WIFI"]["PWD"];
-    stAppWifi_Config.pcHostName = jAppCfg_Config["DEVICE_NAME"];
-    bAppCfg_UnlockJson();
-    if (ssid == nullptr || pwd == nullptr || strlen(ssid) == 0 || strlen(pwd) == 0)
-    {   // minimal valid configuration
+    const char *pcSsid = jAppCfg_Config["WIFI"]["SSID"];
+    const char *pcPwd = jAppCfg_Config["WIFI"]["PWD"];
+    const char *pcHostname = jAppCfg_Config["DEVICE_NAME"];
+    // check data valid 
+    if ((pcSsid == nullptr) || !strlen(pcSsid) ||
+        (pcPwd == nullptr) || !strlen(pcPwd) ||
+        (pcHostname == nullptr) || !strlen(pcHostname))
+    {
+        // empty data
+        stAppWifi_Config.bAvailable = false;
+    }
+    else if ((strlen(pcSsid) >= sizeof(stAppWifi_Config.tcSsid)) ||
+             (strlen(pcPwd) >= sizeof(stAppWifi_Config.tcPassword)) ||
+             (strlen(pcHostname) >= sizeof(stAppWifi_Config.tcHostName)))
+    {
+        // Data exceed destination buffer
         stAppWifi_Config.bAvailable = false;
     }
     else
     {
         stAppWifi_Config.bAvailable = true;
-        stAppWifi_Config.pcSsid = ssid;
-        stAppWifi_Config.pcPassword = pwd;
+        strncpy(stAppWifi_Config.tcHostName, pcHostname, sizeof(stAppWifi_Config.tcHostName)-1);
+        strncpy(stAppWifi_Config.tcSsid, pcSsid, sizeof(stAppWifi_Config.tcSsid)-1);
+        strncpy(stAppWifi_Config.tcPassword, pcPwd, sizeof(stAppWifi_Config.tcPassword)-1);
     }
+    bAppCfg_UnlockJson();
     return stAppWifi_Config.bAvailable;
 }
 

@@ -20,18 +20,26 @@
 /*******************************************************************************
  *  Types, nums, macros
  ******************************************************************************/
+typedef void (*pfAppMqtt_Callback) (const char* pcPayload, uint32_t u32PayloadLen);
+
 typedef enum {
-    eAppMqtt_Topic_Event,
+    eAppMqtt_SubTopic,
+    eAppMqtt_PubTopic,
+} TeAppMqtt_Type;
+
+typedef enum {
+    eAppMqtt_Topic_EventIn,
+    eAppMqtt_Topic_EventOut,
     eAppMqtt_Topic_Cmd,
-    eAppMqtt_Topic_Resp
+    eAppMqtt_Topic_Resp,
     eAppMqtt_Topic_Substrip,
-} TeAppMqtt_Topics;
+} TeAppMqtt_Id;
 
 typedef struct {
-    TeAppMqtt_Topics    eTopicId;
+    TeAppMqtt_Type      eTopicType;
     QueueHandle_t       xQueueTopic;
-    void                *pvBuffer;
-    char                tcTopicName[64];
+    const char          *pcTopicName;
+    pfAppMqtt_Callback  pfCallback;
 } TstAppMqtt_TopicHandle;
 
 /*******************************************************************************
@@ -43,7 +51,6 @@ typedef struct {
  ******************************************************************************/
 void vAppMqtt_init(void);
 void vAppMqtt_connect(void);
-
 bool bAppMqtt_SyncConfig(void);
 
 #endif

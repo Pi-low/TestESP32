@@ -15,22 +15,32 @@
 /*******************************************************************************
  *  Types, nums, macros
  ******************************************************************************/
+#define MQTT_BUFFER_PARAM_LENGTH    64
 typedef struct {
     bool bAvailable;
     TickType_t xTimeout;
-    const char* pcBroker;
-    const char* pcLogin;
-    const char* pcPwd;
-    const char* pcTopic;
+    char tcId[MQTT_BUFFER_PARAM_LENGTH];
+    char tcBroker[MQTT_BUFFER_PARAM_LENGTH];
+    char tcLogin[MQTT_BUFFER_PARAM_LENGTH];
+    char tcPwd[MQTT_BUFFER_PARAM_LENGTH];
+    char tcTopic[MQTT_BUFFER_PARAM_LENGTH];
     uint16_t u16Port;
     uint16_t u16KeepAlive;
-} TstAppWifi_MqttConfig;
+} TstAppMqtt_Config;
 
 /*******************************************************************************
  *  Global variable
  ******************************************************************************/
+ESP32MQTTClient mqttClient;
 const char* CAcert = nullptr;
-static TstAppWifi_MqttConfig stAppWifi_MqttCfg;
+static TstAppMqtt_Config stAppMqtt_Cfg;
+TstAppMqtt_TopicHandle stAppMqtt_TopicHandles[] = {
+    {.eTopicType = eAppMqtt_SubTopic, .pfCallback = nullptr},  //eAppMqtt_Topic_EventIn
+    {.eTopicType = eAppMqtt_PubTopic, .pfCallback = nullptr},   //eAppMqtt_Topic_EventOut
+    {.eTopicType = eAppMqtt_SubTopic, .pfCallback = nullptr},   //eAppMqtt_Topic_Cmd
+    {.eTopicType = eAppMqtt_PubTopic, .pfCallback = nullptr},   //eAppMqtt_Topic_Resp
+    {.eTopicType = eAppMqtt_SubTopic, .pfCallback = nullptr},   //eAppMqtt_Topic_Substrip
+};
 
 /*******************************************************************************
  *  Prototypes
@@ -46,20 +56,22 @@ void vAppMqtt_init(void)
 
 void vAppMqtt_connect(void)
 {
-    if (stAppWifi_MqttCfg.u16KeepAlive)
+    char tcURI[128];
+    char pcPrint[256];
+    bAppMqtt_SyncConfig();
+    if (stAppMqtt_Cfg.u16KeepAlive)
     {
-        mqttClient.setKeepAlive(stAppWifi_MqttCfg.u16KeepAlive);
+        mqttClient.setKeepAlive(stAppMqtt_Cfg.u16KeepAlive);
     }
     if (stAppWifi_Config.pcHostName != nullptr)
     {
-        mqttClient.setMqttClientName(stAppWifi_Config.pcHostName);
+        mqttClient.setMqttClientName(stAppWifi_Config.tcId);
     }
-    snprintf(pcURI, 64, "mqtts://%s:%u", stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port);
-    snprintf(pcPrint, 256, "[AppWifi] Connecting to MQTT broker: %s\r\n", pcURI);
+    snprintf(tcURI, sizeof(tcURI), "mqtts://%s:%u", stAppMqtt_Cfg.tcBroker, stAppMqtt_Cfg.u16Port);
+    snprintf(pcPrint, sizeof(pcPrint), "[AppWifi] Connecting to %s\r\n", pcURI);
     APP_TRACE(pcPrint);
-    mqttClient.setURI(pcURI, stAppWifi_MqttCfg.pcLogin, stAppWifi_MqttCfg.pcPwd);
+    mqttClient.setURI(pcURI, stAppMqtt_Cfg.tcLogin, stAppMqtt_Cfg.tcPwd);
     mqttClient.setCaCert(CAcert);
-    // mqttClient.setURL(stAppWifi_MqttCfg.pcBroker, stAppWifi_MqttCfg.u16Port, stAppWifi_MqttCfg.pcLogin, stAppWifi_MqttCfg.pcPwd);
     mqttClient.loopStart();
 }
 
@@ -78,22 +90,38 @@ bool bAppMqtt_SyncConfig(void)
     const char *pcTopic =   jAppCfg_Config["MQTT"]["GLOBAL_TOPIC"];
     uint16_t u16port =      jAppCfg_Config["MQTT"]["PORT"];
     uint16_t u16keepAlive = jAppCfg_Config["MQTT"]["KEEPALIVE"];
-    bAppCfg_UnlockJson();
-    if ((pcBroker == nullptr) || !strlen(pcBroker) || !u16port || (pcId == nullptr )|| !strlen(pcId))
-    {   // minimal valid configuration
-        stAppWifi_MqttCfg.bAvailable = false;
+
+    if ((pcBroker == nullptr) || !strlen(pcBroker) ||
+        (pcId == nullptr) || !strlen(pcId) ||
+        (pcTopic == nullptr) || !strlen(pcTopic) ||
+        !u16port || !u16keepAlive)
+    { // minimal valid configuration check
+        stAppMqtt_Cfg.bAvailable = false;
+    }
+    else if ((strlen(pcBroker) >= sizeof(stAppMqtt_Cfg.tcBroker)) || (strlen(pcId) >= sizeof(stAppMqtt_Cfg.tcId)))
+    {
+        stAppMqtt_Cfg.bAvailable = false;
     }
     else
     {
-        stAppWifi_MqttCfg.bAvailable = true;
-        stAppWifi_MqttCfg.pcBroker = pcBroker;
-        stAppWifi_MqttCfg.pcLogin = pcLogin;
-        stAppWifi_MqttCfg.pcPwd = pcPwd;
-        stAppWifi_MqttCfg.pcTopic = pcTopic;
-        stAppWifi_MqttCfg.u16Port = u16port;
-        stAppWifi_MqttCfg.u16KeepAlive = u16keepAlive;
+        stAppMqtt_Cfg.bAvailable = true;
+
+        strncpy(stAppMqtt_Cfg.tcBroker, pcBroker, sizeof(stAppMqtt_Cfg.tcBroker));
+        strncpy(stAppMqtt_Cfg.tcId, pcId, sizeof(stAppMqtt_Cfg.tcId));
+        strncpy(stAppMqtt_Cfg.tcTopic, pcTopic, sizeof(stAppMqtt_Cfg.tcTopic));
+        if (pcLogin != nullptr)
+        {
+            strncpy(stAppMqtt_Cfg.tcLogin, pcLogin, sizeof(stAppMqtt_Cfg.tcLogin));
+        }
+        if (pcPwd != nullptr)
+        {
+            strncpy(stAppMqtt_Cfg.tcPwd, pcPwd, sizeof(stAppMqtt_Cfg.tcPwd));
+        }
+        stAppMqtt_Cfg.u16Port = u16port;
+        stAppMqtt_Cfg.u16KeepAlive = u16keepAlive;
     }
-    return stAppWifi_MqttCfg.bAvailable;
+    bAppCfg_UnlockJson();
+    return stAppMqtt_Cfg.bAvailable;
 }
 
 void onMqttConnect(esp_mqtt_client_handle_t client)
