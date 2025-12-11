@@ -13,14 +13,12 @@
 #include "App_PrintUtils.h"
 
 #if defined(APP_WIFI) && APP_WIFI
+#include <WiFi.h>
 
 #define WIFI_TASKING 1000
 
-#include <WiFi.h>
-
 eApp_RetVal eAppWifi_init(void);
 bool bAppWifi_SyncWifiConfig(void);
-bool bAppWifi_SyncMqttConfig(void);
 
 #endif // APP_WIFI
 

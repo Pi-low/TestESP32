@@ -19,6 +19,7 @@
  ******************************************************************************/
 #define APP_TASKS           1 // use FreeRTOS
 #define APP_WIFI            1 // actiavate wifi tasking
+#define APP_MQTT            1 // activate MQTT tasking
 #define APP_FASTLED         1 // activate ledstrip management
 #define ESP_LED_PIN         8
 #define APP_PRINT           1
