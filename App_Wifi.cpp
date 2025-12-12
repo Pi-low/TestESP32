@@ -30,8 +30,6 @@ static void vAppWifi_Task(void *pvArg);
 #define LOCAL_PRINT_BUFFER  256
 #define CONNECT_TIMEOUT     5000
 
-#define _MNG_RETURN(x)                      eRet = x
-
 // Définition des états de la connexion WiFi
 typedef enum {
     WIFI_DISCONNECTED,
@@ -43,9 +41,9 @@ typedef enum {
 typedef struct {
     bool bAvailable;
     TickType_t xTimeout;
-    const char* pcSsid;
-    const char* pcPassword;
-    const char* pcHostName;
+    char tcSsid[CFG_PARAM_MAX_LEN];
+    char tcPassword[CFG_PARAM_MAX_LEN];
+    char tcHostName[CFG_PARAM_MAX_LEN];
 } TstAppWifi_Config;
 
 /*******************************************************************************
@@ -53,7 +51,7 @@ typedef struct {
  ******************************************************************************/
 ESP32MQTTClient mqttClient;
 static bool bAppWifi_DisableWifi;
-static TstAppWifi_Config stAppWifi_Config;
+static TstAppWifi_Config stAppWifi_Cfg;
 static TeAppWifi_State eAppWifi_State = WIFI_DISCONNECTED;
 
 /*******************************************************************************
@@ -76,13 +74,10 @@ eApp_RetVal eAppWifi_init(void)
 {
     eApp_RetVal eRet = eRet_Ok;
     bAppWifi_DisableWifi = false;
-    // bAppWifi_MqttInit = false;
-    stAppWifi_Config.bAvailable = false;
-    // stAppWifi_MqttCfg.bAvailable = false;
+    stAppWifi_Cfg.bAvailable = false;
 #if APP_TASKS
     xTaskCreate(vAppWifi_Task, WIFI_TASK, WIFI_TASK_HEAP, WIFI_TASK_PARAM, WIFI_TASK_PRIO, WIFI_TASK_HANDLE);
 #endif
-
     return eRet;
 }
 
@@ -94,8 +89,8 @@ eApp_RetVal eAppWifi_init(void)
 static void vAppWifi_Task(void *pvArg)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xFrequency = pdMS_TO_TICKS(WIFI_TASKING); // Vérification toutes les 5 secondes
-    char pcPrintBuffer[LOCAL_PRINT_BUFFER];
+    const TickType_t xFrequency = pdMS_TO_TICKS(WIFI_TASKING);
+    char tcPrint[LOCAL_PRINT_BUFFER];
     while (1)
     {
         switch (eAppWifi_State)
@@ -103,14 +98,14 @@ static void vAppWifi_Task(void *pvArg)
         case WIFI_DISCONNECTED:
             if (bAppWifi_SyncWifiConfig() && !bAppWifi_DisableWifi)
             {
-                snprintf(pcPrintBuffer, LOCAL_PRINT_BUFFER, "[AppWifi] Connectig to %s\r\n", stAppWifi_Config.pcSsid);
-                APP_TRACE(pcPrintBuffer);
+                snprintf(tcPrint, sizeof(tcPrint), "[AppWifi] Connectig to %s\r\n", stAppWifi_Cfg.pcSsid);
+                APP_TRACE(tcPrint);
                 WiFi.mode(WIFI_STA);
-                if (stAppWifi_Config.pcHostName != nullptr)
-                { WiFi.setHostname(stAppWifi_Config.pcHostName); }
+                if (stAppWifi_Cfg.tcHostName[0] != '\0')
+                { WiFi.setHostname(stAppWifi_Cfg.tcHostName); }
 
-                WiFi.begin(stAppWifi_Config.pcSsid, stAppWifi_Config.pcPassword);
-                stAppWifi_Config.xTimeout = xTaskGetTickCount() + CONNECT_TIMEOUT;
+                WiFi.begin(stAppWifi_Cfg.tcSsid, stAppWifi_Cfg.tcPassword);
+                stAppWifi_Cfg.xTimeout = xTaskGetTickCount() + CONNECT_TIMEOUT;
                 eAppWifi_State = WIFI_CONNECTING;
             }
             break;
@@ -122,7 +117,7 @@ static void vAppWifi_Task(void *pvArg)
                 APP_TRACE("\r\n[AppWifi] WiFi connected !\r\n");
                 vAppWifi_OnWifiConnect();
             }
-            else if (stAppWifi_Config.xTimeout > xTaskGetTickCount())
+            else if (stAppWifi_Cfg.xTimeout > xTaskGetTickCount())
             {   // connexion ongoing ...
                 APP_TRACE(".");
             }
@@ -135,7 +130,7 @@ static void vAppWifi_Task(void *pvArg)
             break;  
 
         case WIFI_CONNECTED:
-            // Vérification périodique de la connexion
+            // check connexion state
             if (WiFi.status() != WL_CONNECTED)
             {
                 eAppWifi_State = WIFI_DISCONNECTED;
@@ -144,7 +139,7 @@ static void vAppWifi_Task(void *pvArg)
             break;
 
         default:
-            // État inconnu, réinitialisation à déconnecté
+            // Unknown state
             eAppWifi_State = WIFI_DISCONNECTED;
             APP_TRACE("[AppWifi] Unknown WiFi state\r\n");
             break;
@@ -158,38 +153,43 @@ void vAppWifi_OnWifiConnect(void)
     configTime(3600, 0, "pool.ntp.org");
 }
 
-void MqttCallback_Main(const std::string payload)
-{
-    char tcBuffer[256];
-    snprintf(tcBuffer, 256, "[AppWifi] Mqtt rx from \"/lumiapp\" -> %s\r\n", payload.c_str());
-    APP_TRACE(tcBuffer);
-}
+// void MqttCallback_Main(const std::string payload)
+// {
+//     char tcBuffer[256];
+//     snprintf(tcBuffer, 256, "[AppWifi] Mqtt rx from \"/lumiapp\" -> %s\r\n", payload.c_str());
+//     APP_TRACE(tcBuffer);
+// }
 
-void MqttCallback_Device(const std::string payload)
-{
-    char tcBuffer[256];
-    snprintf(tcBuffer, 256, "[AppWifi] Mqtt rx from \"/lumiapp/%s\" -> %s\r\n", stAppWifi_Config.pcHostName, payload.c_str());
-    APP_TRACE(tcBuffer);
-}
+// void MqttCallback_Device(const std::string payload)
+// {
+//     char tcBuffer[256];
+//     snprintf(tcBuffer, 256, "[AppWifi] Mqtt rx from \"/lumiapp/%s\" -> %s\r\n", stAppWifi_Cfg.pcHostName, payload.c_str());
+//     APP_TRACE(tcBuffer);
+// }
 
 bool bAppWifi_SyncWifiConfig(void)
 {
+    memset(stAppWifi_Cfg, 0, sizeof(stAppWifi_Cfg)); // wipe config struct
     bAppCfg_LockJson();
-    const char *ssid = jAppCfg_Config["WIFI"]["SSID"];
-    const char *pwd = jAppCfg_Config["WIFI"]["PWD"];
-    stAppWifi_Config.pcHostName = jAppCfg_Config["DEVICE_NAME"];
-    bAppCfg_UnlockJson();
-    if (ssid == nullptr || pwd == nullptr || strlen(ssid) == 0 || strlen(pwd) == 0)
-    {   // minimal valid configuration
-        stAppWifi_Config.bAvailable = false;
+    const char *pcSsid = jAppCfg_Config["WIFI"]["SSID"];
+    const char *pcPwd = jAppCfg_Config["WIFI"]["PWD"];
+    const char *pcHostname = jAppCfg_Config["DEVICE_NAME"];
+    if ((pcSsid == nullptr) || (pcPwd == nullptr) || !strlen(pcSsid) || !strlen(pcPwd))
+    {   // invalid minimal configuration
+        stAppWifi_Cfg.bAvailable = false;
     }
     else
     {
-        stAppWifi_Config.bAvailable = true;
-        stAppWifi_Config.pcSsid = ssid;
-        stAppWifi_Config.pcPassword = pwd;
+        stAppWifi_Cfg.bAvailable = true;
+        strncpy(stAppWifi_Cfg.tcPassword, pcPwd, sizeof(stAppWifi_Cfg.tcPassword)-1);
+        strncpy(stAppWifi_Cfg.tcSsid, pcPwd, sizeof(stAppWifi_Cfg.tcSsid)-1);
+        if ((pcHostname != nullptr) && strlen(pcHostname))
+        {
+            strncpy(stAppWifi_Cfg.tcHostName, pcHostname, sizeof(stAppWifi_Cfg.tcHostName)-1);
+        }
     }
-    return stAppWifi_Config.bAvailable;
+    bAppCfg_UnlockJson();
+    return stAppWifi_Cfg.bAvailable;
 }
 
 #endif // APP_WIFI

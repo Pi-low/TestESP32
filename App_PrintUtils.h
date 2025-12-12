@@ -13,7 +13,7 @@
 
 #if defined(APP_TASKS) && APP_TASKS
 
-#define PRINT_UTILS_MAX_BUF 128
+#define PRINT_UTILS_MAX_BUF 256
 #define APP_TRACE(x)     vAppPrintUtils_Print(x, strlen(x))
 void vAppPrintUtils_init(void);
 void vAppPrintUtils_Print(const char* pcDataToPrint, BaseType_t xLength);

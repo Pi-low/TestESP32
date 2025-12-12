@@ -20,7 +20,6 @@
 /*******************************************************************************
  *  Types, nums, macros
  ******************************************************************************/
-#define _MNG_RETURN(x)                      eRet = x
 #define CFG_NB_OBJ                          9
 
 typedef enum {
@@ -44,13 +43,13 @@ typedef struct {
  *  Global variable
  ******************************************************************************/
 static SemaphoreHandle_t xJsonMutex;
-const char CtcAppCfg_DefDeviceName[] = "DEVICE_00";
+const char CtcAppCfg_DefDeviceName[] = "null";
 const char CtcAppCfg_DefWifi[] = R"({"SSID":null,"PWD":null})";
-const char CtcAppCfg_DefMqtt[] = R"({"ADDR":null,"PORT":null,"LOGIN":null,"PWD":null,"GLOBAL_TOPIC":"/global","KEEPALIVE":60})";
-const char CtcAppCfg_DefPalettes[] = R"([{"NAME":"default","COLORS":["ffffff","ff0000"]}])";
+const char CtcAppCfg_DefMqtt[] = R"({"ADDR":null,"PORT":null,"LOGIN":null,"PWD":null,"GLOBAL_TOPIC":"/lumiapp","KEEPALIVE":60})";
+const char CtcAppCfg_DefPalettes[] = R"([{"NAME":"xmas","COLORS":["ffffff","ff0000"]}])";
 const char CtcAppCfg_DefProgArr[] = R"([{"ANIM":"glitter","DURATION":120}])";
 const char CtcAppCfg_DefWorkTimeSlot[] = R"([{"ON":"17:30:00","OFF":"22:00:00"},{"ON":"06:30:00","OFF":"08:00:00"}])";
-// const int32_t Cti32AppCfg_DefStripAssembly[5] = {20, 20, 20, 20, 20};
+static char CtcAppCfg_DeviceName[CFG_PARAM_MAX_LEN] = {0};
 
 const TstAppCfg_ParamObj tstAppCfg_Config[CFG_NB_OBJ] = {
     {
@@ -231,18 +230,23 @@ eApp_RetVal eAppCfg_LoadConfig(const char *pcFromFilePath)
         APP_TRACE("Config file does not exist.\r\n");
         _MNG_RETURN(eRet_InternalError);
     }
-    else if (bAppCfg_LockJson())
+    bAppCfg_LockJson();
+    if (deserializeJson(jAppCfg_Config, xConfigFile) != DeserializationError::Ok)
     {
-        if (deserializeJson(jAppCfg_Config, xConfigFile) != DeserializationError::Ok)
-        {
-            APP_TRACE("Deserialization error.\r\n");
-            _MNG_RETURN(eRet_JsonError);
-        }
-        else
-        { APP_TRACE("Config loaded!\r\n"); }
-        bAppCfg_UnlockJson();
-        xConfigFile.close();
+        APP_TRACE("Deserialization error.\r\n");
+        _MNG_RETURN(eRet_JsonError);
     }
+    else
+    {
+        APP_TRACE("Config loaded!\r\n");
+        memset(CtcAppCfg_DeviceName, 0, sizeof(CtcAppCfg_DeviceName));
+        if (!jAppCfg_Config[tstAppCfg_Config[0].pcName].isNull()) // extract DEVICE_NAME value
+        {
+            strncpy(CtcAppCfg_DeviceName, jAppCfg_Config[tstAppCfg_Config[0].pcName].as<const char*>(), sizeof(CtcAppCfg_DeviceName)-1);
+        }
+    }
+    xConfigFile.close();
+    bAppCfg_UnlockJson();
 
     return eRet;
 }
@@ -484,6 +488,11 @@ eApp_RetVal eAppCfg_SetMqttCfg(uint8_t u8ArgId, const char* pcArgVal)
         break;
     }
     return eRet;
+}
+
+char* pcAppCfg_GetDeviceName(void)
+{
+    return ((CtcAppCfg_DeviceName[0] != '\0') ? CtcAppCfg_DeviceName : nullptr);
 }
 
 template <class Y, class T>

@@ -16,23 +16,14 @@
 
 #if defined(APP_MQTT) && APP_MQTT
 #include "ESP32MQTTClient.h"
-
 /*******************************************************************************
  *  Types, nums, macros
  ******************************************************************************/
 typedef enum {
     eAppMqtt_Topic_Event,
     eAppMqtt_Topic_Cmd,
-    eAppMqtt_Topic_Resp
-    eAppMqtt_Topic_Substrip,
+    eAppMqtt_Topic_Nb
 } TeAppMqtt_Topics;
-
-typedef struct {
-    TeAppMqtt_Topics    eTopicId;
-    QueueHandle_t       xQueueTopic;
-    void                *pvBuffer;
-    char                tcTopicName[64];
-} TstAppMqtt_TopicHandle;
 
 /*******************************************************************************
  *  Global variable
@@ -43,8 +34,8 @@ typedef struct {
  ******************************************************************************/
 void vAppMqtt_init(void);
 void vAppMqtt_connect(void);
-
 bool bAppMqtt_SyncConfig(void);
+eApp_RetVal eAppMqtt_Publish(TeAppMqtt_Topics eTopicId, const char* pcPayload);
 
 #endif
 #endif // _APP_MQTT_H_

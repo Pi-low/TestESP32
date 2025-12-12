@@ -16,6 +16,7 @@
 #include <FastLED.h>
 #include "SubStrip.h"
 #include "App_Cli.h"
+#include "App_Mqtt.h"
 
 #define LED_SUBSTRIP_LEN    20
 #define LED_SUBSTRIP_NB     5
@@ -48,5 +49,7 @@ eApp_RetVal eAppLed_LoadColors(CRGB *xColor, uint8_t u8NbColors, uint8_t u8Palet
 eApp_RetVal eAppLed_ConfigSubstrip(uint8_t u8StripId, uint8_t u8CmdIndex, const char* pcValue);
 
 #endif // APP_FASTLED
+void pvAppLed_CallbackEvent(std::string Payload);
+void pvAppLed_CallbackCmd(std::string Payload);
 
 #endif //_APP_LEDS_H

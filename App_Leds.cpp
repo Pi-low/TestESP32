@@ -263,21 +263,55 @@ void vAppLedsTask(void *pvParam)
  * @brief AppLeds animation change task
  * 
  ******************************************************************************/
-void vAppLedsAnimTask(void *pvParam) {
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    SubStrip *pObj;
-    char tcDbgString[PRINT_UTILS_MAX_BUF] = {0};
-    while (1) {
-        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(LED_CHANGE_DELAY));
+// void vAppLedsAnimTask(void *pvParam) {
+//     TickType_t xLastWakeTime = xTaskGetTickCount();
+//     SubStrip *pObj;
+//     char tcDbgString[PRINT_UTILS_MAX_BUF] = {0};
+//     while (1) {
+//         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(LED_CHANGE_DELAY));
 
-        if(LOCK_LEDS()) {
-            // protected ressource >>>
-            snprintf(tcDbgString, PRINT_UTILS_MAX_BUF, "[APP_ANIM] [%u] Animation event\r\n", millis());
-            APP_TRACE(tcDbgString);
-            // <<< end of protected ressource
-            UNLOCK_LEDS();
-        }
+//         if(LOCK_LEDS()) {
+//             // protected ressource >>>
+//             snprintf(tcDbgString, PRINT_UTILS_MAX_BUF, "[APP_ANIM] [%u] Animation event\r\n", millis());
+//             APP_TRACE(tcDbgString);
+//             // <<< end of protected ressource
+//             UNLOCK_LEDS();
+//         }
+//     }
+// }
+
+void pvAppLed_CallbackEvent(std::string Payload) {
+    JsonDocument jDoc;
+    std::string strPrint;
+    if (deserializeJson(jDoc, Payload) != DeserializationError::Ok)
+    {
+        strPrint = "Incoming event: ------>\r\n" + Payload + "\r\n<------\r\n";
     }
+    else if (jDoc["id"].as<std::string>() != std::string(pcAppCfg_GetDeviceName()))
+    {
+        std::string Serialized;
+        serializeJsonPretty(jDoc, Serialized);
+        strPrint = "Incoming event: ------>\r\n" + Serialized + "\r\n<------\r\n";
+    }
+    if (!strPrint.empty())
+        APP_TRACE(strPrint.c_str());
+}
+
+void pvAppLed_CallbackCmd(std::string Payload) {
+    JsonDocument jDoc;
+    std::string strPrint;
+    if (deserializeJson(jDoc, Payload) != DeserializationError::Ok)
+    {
+        strPrint = "Incoming cmd: ------>\r\n" + Payload + "\r\n<------\r\n";
+    }
+    else if (jDoc["id"].as<std::string>() != std::string(pcAppCfg_GetDeviceName()))
+    {
+        std::string Serialized;
+        serializeJsonPretty(jDoc, Serialized);
+        strPrint = "Incoming cmd: ------>\r\n" + Serialized + "\r\n<------\r\n";
+    }
+    if (!strPrint.empty())
+        APP_TRACE(strPrint.c_str());
 }
 
 eApp_RetVal eAppLed_blackout(void) {

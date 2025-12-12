@@ -23,8 +23,8 @@
 #define APP_FASTLED         1 // activate ledstrip management
 #define ESP_LED_PIN         8
 #define APP_PRINT           1
-#define APP_ROOT_TOPIC      "/lumiapp"
 #define CONFIG_FILE_PATH    "/config.cfg"
+#define CFG_PARAM_MAX_LEN   64
 
 /*******************************************************************************
  *  DEBUG CONFIGURATION 
@@ -48,6 +48,7 @@ eApp_RetVal eAppCfg_SetDefaultConfig(void);
 eApp_RetVal eAppCfg_ResetParamKey(const char* pcObjectKey);
 eApp_RetVal eAppCfg_SetStrips(const char* pcCfgFromCli);
 eApp_RetVal eAppCfg_SetMqttCfg(uint8_t u8ArgId, const char* pcArgVal);
+char* pcAppCfg_GetDeviceName(void);
 bool bAppCfg_LockJson(void);
 bool bAppCfg_UnlockJson(void);
 
